@@ -107,7 +107,7 @@ async function loadData() {
   const [sh, ca, pr, se, ra] = await Promise.all([
     sb.from('shops').select('*').order('sort'),
     sb.from('categories').select('*').order('sort'),
-    fetchAll('products', 'id,shop_id,category_id,name_ar,name_de,desc_ar,desc_de,price,unit,step,min_qty,barcode,image_url,track_stock,stock,min_stock,expiry,allergens,halal,cooled,pfand,vat,kind,options,featured,active,sort'),
+    fetchAll('products', 'id,shop_id,category_id,name_ar,name_de,desc_ar,desc_de,price,unit,step,min_qty,barcode,image_url,track_stock,stock,min_stock,expiry,allergens,halal,cooled,pfand,vat,kind,options,featured,active,sort,demo'),
     sb.from('settings').select('data').eq('id', 1).maybeSingle(),
     sb.rpc('shop_ratings')
   ]);

@@ -213,7 +213,7 @@ function bindOrderCards(root, refresh) {
 }
 function printOrder(o) {
   const asView = Object.assign({}, o, { items: o.order_items.map(i => Object.assign({}, i, { line_total: i.final_total != null ? i.final_total : i.line_total })) });
-  modal(`<button class="ib x noprint" data-close>✕</button><div class="receipt" id="rc"><div style="text-align:center"><img src="logo.png" style="width:150px;margin:auto;filter:invert(1)"></div>
+  modal(`<button class="ib x noprint" data-close>✕</button><div class="receipt" id="rc"><div style="text-align:center"><img src="logo-dark.png" style="width:150px;margin:auto"></div>
      <div style="text-align:center;font-size:22px;font-weight:700">#${o.id}</div><div style="text-align:center">${fmtDate(o.created_at)} • ${o.mode === 'delivery' ? 'Lieferung' : 'Abholung'}</div>
      <div>${esc(o.customer_name)} • ${esc(o.phone)}${o.mode === 'delivery' ? '<br>' + esc(o.street) + ', ' + esc(o.plz) + ' ' + esc(o.city) : ''}</div><hr>${receiptHtml(asView)}</div>
      <div class="acts noprint" style="margin-top:10px"><button class="btn full" onclick="window.print()">🖨️ ${esc(A('طباعة', 'Drucken'))}</button></div>`);
@@ -228,7 +228,8 @@ async function secProducts(main) {
        <button class="btn s" id="pAdd">➕ ${esc(A('منتج جديد', 'Neues Produkt'))}</button>
        <button class="btn s o" id="pCats">🗂️ ${esc(A('الأقسام', 'Kategorien'))} (${cats.length})</button>
        <button class="btn s o" id="pImp">📥 ${esc(A('استيراد Excel/CSV', 'Import Excel/CSV'))}</button>
-       <button class="btn s o" id="pExp">📤 CSV</button></div>
+       <button class="btn s o" id="pExp">📤 CSV</button>
+       ${S.staff.role === 'admin' && S.products.some(p => p.demo) ? `<button class="btn s r" id="pDemo">🗑️ ${esc(A('احذف كل منتجات التجربة', 'Alle Demo-Produkte löschen'))} (${S.products.filter(p => p.demo).length})</button>` : ''}</div>
       <div class="row"><input type="search" id="pq" placeholder="${esc(A('بحث أو باركود', 'Suche oder Barcode'))}"><select id="pc"><option value="">${esc(A('كل الأقسام', 'Alle Kategorien'))}</option>${cats.map(c => `<option value="${c.id}">${esc(L(c, 'name'))}</option>`).join('')}<option value="-">${esc(A('بدون قسم', 'Ohne Kategorie'))}</option></select></div>
       <div id="plst" style="margin-top:10px"></div>`;
     const list = () => {
@@ -246,6 +247,12 @@ async function secProducts(main) {
     $('#pCats').onclick = () => editCats(sid, draw);
     $('#pImp').onclick = () => importCsv(sid, draw);
     $('#pExp').onclick = () => exportCsv(sid);
+    if ($('#pDemo')) $('#pDemo').onclick = async () => {
+      if (!confirm(A('أكيد؟ رح تنمسح كل منتجات وأقسام التجربة بكل المحلات. منتجاتك الحقيقية ما بتنمس.', 'Sicher? Alle Demo-Produkte und Demo-Kategorien aller Geschäfte werden gelöscht. Echte Produkte bleiben.'))) return;
+      const r1 = await sb.from('products').delete().eq('demo', true); if (r1.error) return err(r1.error);
+      const r2 = await sb.from('categories').delete().eq('demo', true); if (r2.error) return err(r2.error);
+      toast('✓'); await reloadAll(); draw();
+    };
   };
   draw();
 }
