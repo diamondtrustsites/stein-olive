@@ -3,22 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>بيت كرم – Stein & Olive</title>
-<meta name="description" content="Stein & Olive by Karam – Online bestellen: Supermarkt, Restaurant, Süßigkeiten, Metzgerei, Käse & Oliven. Abholung & Lieferung in Hamburg.">
-<meta name="theme-color" content="#0b0b0b">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://xboagmemkfxlkaqblcco.supabase.co https://commons.wikimedia.org https://upload.wikimedia.org; font-src 'self'; connect-src 'self' https://xboagmemkfxlkaqblcco.supabase.co wss://xboagmemkfxlkaqblcco.supabase.co; frame-src https://www.openstreetmap.org; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>بيت كرم – Stein & Olive | Online bestellen</title>
+<meta name="description" content="Stein & Olive by Karam, Steintorweg 4 Hamburg: Supermarkt, Restaurant, Süßigkeiten, Metzgerei, Käse & Oliven. Online bestellen – Abholung oder Lieferung.">
+<meta name="theme-color" content="#1E2219">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
-<div id="app"><div class="boot"><img src="logo.png" alt=""></div></div>
+<div id="app"><div class="boot"><img src="logo.png" alt="Stein & Olive"></div></div>
 <div id="modal" class="modal" hidden></div>
-<div id="toast" class="toast" hidden></div>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 <script src="lib/supabase.js"></script>
 <script src="lib/qrcode.js"></script>
-<script src="app.js"></script>
-<script src="admin.js"></script>
-<script>App.start()</script>
+<script src="config.js?v=3"></script>
+<script src="app.js?v=3"></script>
+<script src="admin.js?v=3"></script>
+<script src="boot.js?v=3"></script>
 </body>
 </html>
