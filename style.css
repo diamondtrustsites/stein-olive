@@ -586,3 +586,9 @@ html,body{overflow-x:clip}
 .chip.img i{width:30px;height:30px;border-radius:50%;background:center/cover no-repeat;flex:none;box-shadow:0 0 0 2px var(--surface)}
 h2.cat{display:flex;align-items:center;gap:12px}
 h2.cat i{width:46px;height:46px;border-radius:50%;background:center/cover no-repeat;flex:none;box-shadow:0 0 0 3px var(--surface),0 4px 12px rgba(30,34,25,.12)}
+@media(max-width:699px){.wrap.gl>.shead.hasbn:first-child .cv{height:280px;background-size:auto 100%;background-position:0% 50%}}
+[dir=rtl] .wrap.gl>.shead.hasbn:first-child .cv{background-position:100% 50%}
+@media(min-width:700px){[dir=rtl] .wrap.gl>.shead.hasbn:first-child .cv{background-position:center}}
+.wrap.gl>.shead:first-child{margin-inline:calc(50% - 50vw)}
+.shead .in{max-width:1180px;margin-inline:auto;padding-inline:max(16px,calc(50vw - 574px))}
+@media(min-width:1210px){.shead .in{padding-inline:16px}}
