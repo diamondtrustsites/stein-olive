@@ -58,7 +58,7 @@ const T = {
   cakedate:'تاريخ الاستلام', caketext:'الكتابة على القالب', basket:'اختار محتوى السلة', basketmin:'اختار منتج واحد على الأقل',
   empty:'سلتك فاضية', emptyhint:'اختار من المحلات وضيف للسلة. بتقدر تطلب من كل المحلات بطلب واحد.', subtotal:'المجموع الفرعي', pfand:'Pfand', delivery:'التوصيل', discount:'الخصم', total:'المجموع', toshop:'تصفّح المحلات',
   pickup:'استلام', deliv:'توصيل', name:'الاسم', phone:'رقم الهاتف', email:'الإيميل', emailopt:'الإيميل (اختياري)', street:'الشارع ورقم البيت', plz:'الرمز البريدي', city:'المدينة',
-  addrnote:'ملاحظة للسائق (طابق، جرس…)', when:'وقت الطلب', asap:'بأسرع وقت', later:'وقت محدد', payment:'الدفع', cash:'كاش عند الاستلام', card:'بطاقة EC عند الاستلام', paypal:'PayPal', transfer:'تحويل بنكي', invoice:'الفاتورة', paid:'مدفوع', unpaid:'غير مدفوع بعد', banktitle:'ادفع بالتحويل البنكي', bankhint:'امسح الكود بتطبيق البنك (Sparkasse وغيره) وبيتعبى التحويل لحاله، أو انسخ المعلومات.', holder:'صاحب الحساب', amount:'المبلغ', purpose:'سبب التحويل', copied:'انتسخ', transferhint:'بعد ما ترسل الطلب بتطلعلك معلومات الحساب البنكي.',
+  addrnote:'ملاحظة للسائق (طابق، جرس…)', when:'وقت الطلب', asap:'بأسرع وقت', later:'وقت محدد', payment:'الدفع', cash:'كاش عند الاستلام', card:'بطاقة EC عند الاستلام', paypal:'PayPal', transfer:'تحويل بنكي', stripe:'بطاقة أونلاين (Visa، Mastercard، Apple Pay، Google Pay)', paynow:'ادفع هلق بالبطاقة', paytitle:'الدفع أونلاين', payopen:'طلبك لسا مش مدفوع. ادفع بالبطاقة لحتى المحلات تبلّش.', payfail:'ما زبط فتح صفحة الدفع. جرّب كمان مرة.', invoice:'الفاتورة', paid:'مدفوع', unpaid:'غير مدفوع بعد', banktitle:'ادفع بالتحويل البنكي', bankhint:'امسح الكود بتطبيق البنك (Sparkasse وغيره) وبيتعبى التحويل لحاله، أو انسخ المعلومات.', holder:'صاحب الحساب', amount:'المبلغ', purpose:'سبب التحويل', copied:'انتسخ', transferhint:'بعد ما ترسل الطلب بتطلعلك معلومات الحساب البنكي.',
   coupon:'كود الخصم', ordernote:'ملاحظة على الطلب', place:'أرسل الطلب', minorder:'الحد الأدنى', zoneok:'منوصل لعندك', zonebad:'ما منوصل لهالرمز البريدي حالياً',
   track:'تتبع الطلب', myorders:'طلباتي', st_new:'تم الاستلام', st_preparing:'قيد التحضير', st_ready:'جاهز', st_on_way:'بالطريق', st_delivered:'تم التوصيل', st_picked_up:'تم الاستلام', st_cancelled:'ملغي',
   showqr:'ورجي هالكود بالمحل وقت الاستلام', driver:'السائق', rate:'كيف كان', thanks:'شكراً، وصل تقييمك', receipt:'الفاتورة', print:'طباعة', staff:'دخول الموظفين',
@@ -71,7 +71,7 @@ const T = {
   noresults:'ما لقينا شي بهالاسم.', vatincl:'كل الأسعار شاملة الضريبة.', orderno:'رقم الطلب', light:'الوضع الفاتح', dark:'الوضع الداكن', lang:'Deutsch', langs:'DE',
   login:'تسجيل الدخول', register:'حساب جديد', password:'كلمة السر', newpass:'كلمة سر جديدة', oldpass:'كلمة السر الحالية', logout:'تسجيل الخروج', save:'حفظ', saved:'انحفظ',
   welcome:'أهلاً', profile:'معلوماتي', address:'عنوان التوصيل', noorders:'لسا ما طلبت شي.', reorder:'اطلب نفس الطلب', added:'انضاف للسلة', loginhint:'سجّل دخول لتحفظ عنوانك وتشوف طلباتك.',
-  orguest:'أو كمّل بدون حساب', haveacc:'عندك حساب؟', noacc:'ما عندك حساب؟', changepass:'تغيير كلمة السر', e_locked:'الطلب خلص أو صار بالطريق، ما فيك تغيّر فيه.', e_needcode:'لازم كود التسليم من الزبون.', e_badcode:'الكود غلط.', code_d:'كود التسليم: عطيه للسائق لما يوصل', code_p:'كود الاستلام: قولو بالمحل أو ورجيهن الـ QR', posat:'آخر تحديث للموقع:', posnone:'السائق بالطريق. موقعو رح يبين هون بعد شوي.', forgot:'نسيت كلمة السر؟', forgot_t:'كلمة سر جديدة', forgot_p:'اكتب الإيميل تبع حسابك. منبعتلك رابط تحط فيه كلمة سر جديدة.', forgot_send:'ابعت الرابط', forgot_ok:'إذا في حساب بهالإيميل، وصلك رابط. شوف الإيميل (وكمان مجلد Spam). الرابط شغال ساعة وحدة.', reset_t:'حط كلمة سر جديدة', newpass2:'أعد كلمة السر', e_nomatch:'كلمتين السر مش متل بعض.', e_resetbad:'الرابط مش صالح أو انتهى. اطلب رابط جديد.', reset_ok:'تغيّرت كلمة السر.',
+  orguest:'أو كمّل بدون حساب', haveacc:'عندك حساب؟', noacc:'ما عندك حساب؟', changepass:'تغيير كلمة السر', e_locked:'الطلب خلص أو صار بالطريق، ما فيك تغيّر فيه.', e_needcode:'لازم كود التسليم من الزبون.', e_badcode:'الكود غلط.', proof:'صورة التسليم', eta_drive:'بيوصل لعندك تقريباً بعد', min:'دقيقة', eta_deliv:'التوصيل المتوقع:', eta_pick:'جاهز للاستلام تقريباً:', eta_sched:'الموعد:', eta_soon:'قرّب يجهز طلبك.', code_d:'كود التسليم: عطيه للسائق لما يوصل', code_p:'كود الاستلام: قولو بالمحل أو ورجيهن الـ QR', posat:'آخر تحديث للموقع:', posnone:'السائق بالطريق. موقعو رح يبين هون بعد شوي.', forgot:'نسيت كلمة السر؟', forgot_t:'كلمة سر جديدة', forgot_p:'اكتب الإيميل تبع حسابك. منبعتلك رابط تحط فيه كلمة سر جديدة.', forgot_send:'ابعت الرابط', forgot_ok:'إذا في حساب بهالإيميل، وصلك رابط. شوف الإيميل (وكمان مجلد Spam). الرابط شغال ساعة وحدة.', reset_t:'حط كلمة سر جديدة', newpass2:'أعد كلمة السر', e_nomatch:'كلمتين السر مش متل بعض.', e_resetbad:'الرابط مش صالح أو انتهى. اطلب رابط جديد.', reset_ok:'تغيّرت كلمة السر.',
   recent:'بحثت مؤخراً', suggest:'جرّب', deliveryfrom:'التوصيل من', pickuphere:'استلام من Steintorweg 4', orderas:'الطلب باسم', change:'تغيير', clear:'مسح',
   hmin:'دقيقة', addcart:'أضف', options:'الخيارات', orders:'طلبات', cancelnote:'لإلغاء الطلب اتصل بالمحل.', whatsapp:'واتساب', viewcart:'عرض السلة'
  },
@@ -82,7 +82,7 @@ const T = {
   cakedate:'Abholdatum', caketext:'Aufschrift auf der Torte', basket:'Korb zusammenstellen', basketmin:'Bitte mindestens ein Produkt wählen',
   empty:'Dein Warenkorb ist leer', emptyhint:'Wähle in den Geschäften aus. Du kannst aus allen Geschäften in einer Bestellung bestellen.', subtotal:'Zwischensumme', pfand:'Pfand', delivery:'Lieferung', discount:'Rabatt', total:'Gesamt', toshop:'Geschäfte ansehen',
   pickup:'Abholung', deliv:'Lieferung', name:'Name', phone:'Telefon', email:'E-Mail', emailopt:'E-Mail (optional)', street:'Straße und Hausnummer', plz:'PLZ', city:'Ort',
-  addrnote:'Hinweis für den Fahrer (Etage, Klingel …)', when:'Zeitpunkt', asap:'So schnell wie möglich', later:'Uhrzeit wählen', payment:'Zahlung', cash:'Bar bei Übergabe', card:'EC-Karte bei Übergabe', paypal:'PayPal', transfer:'Überweisung', invoice:'Rechnung', paid:'Bezahlt', unpaid:'Noch nicht bezahlt', banktitle:'Per Überweisung bezahlen', bankhint:'Scanne den Code mit deiner Banking-App (z. B. Sparkasse), dann ist die Überweisung schon ausgefüllt. Oder kopiere die Daten.', holder:'Empfänger', amount:'Betrag', purpose:'Verwendungszweck', copied:'Kopiert', transferhint:'Nach dem Absenden siehst du die Bankverbindung.',
+  addrnote:'Hinweis für den Fahrer (Etage, Klingel …)', when:'Zeitpunkt', asap:'So schnell wie möglich', later:'Uhrzeit wählen', payment:'Zahlung', cash:'Bar bei Übergabe', card:'EC-Karte bei Übergabe', paypal:'PayPal', transfer:'Überweisung', stripe:'Karte online (Visa, Mastercard, Apple Pay, Google Pay)', paynow:'Jetzt mit Karte bezahlen', paytitle:'Online bezahlen', payopen:'Deine Bestellung ist noch nicht bezahlt. Bitte mit Karte bezahlen, dann legen die Geschäfte los.', payfail:'Die Bezahlseite konnte nicht geöffnet werden. Bitte nochmal versuchen.', invoice:'Rechnung', paid:'Bezahlt', unpaid:'Noch nicht bezahlt', banktitle:'Per Überweisung bezahlen', bankhint:'Scanne den Code mit deiner Banking-App (z. B. Sparkasse), dann ist die Überweisung schon ausgefüllt. Oder kopiere die Daten.', holder:'Empfänger', amount:'Betrag', purpose:'Verwendungszweck', copied:'Kopiert', transferhint:'Nach dem Absenden siehst du die Bankverbindung.',
   coupon:'Gutscheincode', ordernote:'Anmerkung zur Bestellung', place:'Zahlungspflichtig bestellen', minorder:'Mindestbestellwert', zoneok:'Wir liefern zu dir', zonebad:'Für diese PLZ liefern wir derzeit nicht',
   track:'Bestellung verfolgen', myorders:'Meine Bestellungen', st_new:'Eingegangen', st_preparing:'In Zubereitung', st_ready:'Fertig', st_on_way:'Unterwegs', st_delivered:'Geliefert', st_picked_up:'Abgeholt', st_cancelled:'Storniert',
   showqr:'Zeige diesen Code bei der Abholung', driver:'Fahrer', rate:'Wie war', thanks:'Danke für deine Bewertung', receipt:'Beleg', print:'Drucken', staff:'Personal-Login',
@@ -95,7 +95,7 @@ const T = {
   noresults:'Dazu haben wir nichts gefunden.', vatincl:'Alle Preise inkl. MwSt.', orderno:'Bestellnummer', light:'Heller Modus', dark:'Dunkler Modus', lang:'العربية', langs:'ع',
   login:'Anmelden', register:'Konto erstellen', password:'Passwort', newpass:'Neues Passwort', oldpass:'Aktuelles Passwort', logout:'Abmelden', save:'Speichern', saved:'Gespeichert',
   welcome:'Hallo', profile:'Meine Daten', address:'Lieferadresse', noorders:'Du hast noch nichts bestellt.', reorder:'Erneut bestellen', added:'Im Warenkorb', loginhint:'Melde dich an, um deine Adresse zu speichern und Bestellungen zu sehen.',
-  orguest:'oder ohne Konto weiter', haveacc:'Schon ein Konto?', noacc:'Noch kein Konto?', changepass:'Passwort ändern', e_locked:'Die Bestellung ist abgeschlossen oder unterwegs und kann nicht mehr geändert werden.', e_needcode:'Dafür brauchst du den Übergabe-Code vom Kunden.', e_badcode:'Code falsch.', code_d:'Übergabe-Code: nenne ihn dem Fahrer bei der Ankunft', code_p:'Abhol-Code: im Geschäft nennen oder QR-Code zeigen', posat:'Standort aktualisiert:', posnone:'Der Fahrer ist unterwegs. Sein Standort erscheint hier gleich.', forgot:'Passwort vergessen?', forgot_t:'Neues Passwort', forgot_p:'Gib die E-Mail deines Kontos ein. Wir schicken dir einen Link, mit dem du ein neues Passwort festlegst.', forgot_send:'Link senden', forgot_ok:'Wenn es ein Konto mit dieser E-Mail gibt, ist ein Link unterwegs. Schau ins Postfach (auch in den Spam-Ordner). Der Link gilt eine Stunde.', reset_t:'Neues Passwort festlegen', newpass2:'Passwort wiederholen', e_nomatch:'Die Passwörter stimmen nicht überein.', e_resetbad:'Der Link ist ungültig oder abgelaufen. Fordere einen neuen an.', reset_ok:'Passwort geändert.',
+  orguest:'oder ohne Konto weiter', haveacc:'Schon ein Konto?', noacc:'Noch kein Konto?', changepass:'Passwort ändern', e_locked:'Die Bestellung ist abgeschlossen oder unterwegs und kann nicht mehr geändert werden.', e_needcode:'Dafür brauchst du den Übergabe-Code vom Kunden.', e_badcode:'Code falsch.', proof:'Foto der Übergabe', eta_drive:'Ankunft in etwa', min:'Min.', eta_deliv:'Voraussichtliche Lieferung:', eta_pick:'Abholbereit voraussichtlich:', eta_sched:'Termin:', eta_soon:'Deine Bestellung ist gleich fertig.', code_d:'Übergabe-Code: nenne ihn dem Fahrer bei der Ankunft', code_p:'Abhol-Code: im Geschäft nennen oder QR-Code zeigen', posat:'Standort aktualisiert:', posnone:'Der Fahrer ist unterwegs. Sein Standort erscheint hier gleich.', forgot:'Passwort vergessen?', forgot_t:'Neues Passwort', forgot_p:'Gib die E-Mail deines Kontos ein. Wir schicken dir einen Link, mit dem du ein neues Passwort festlegst.', forgot_send:'Link senden', forgot_ok:'Wenn es ein Konto mit dieser E-Mail gibt, ist ein Link unterwegs. Schau ins Postfach (auch in den Spam-Ordner). Der Link gilt eine Stunde.', reset_t:'Neues Passwort festlegen', newpass2:'Passwort wiederholen', e_nomatch:'Die Passwörter stimmen nicht überein.', e_resetbad:'Der Link ist ungültig oder abgelaufen. Fordere einen neuen an.', reset_ok:'Passwort geändert.',
   recent:'Zuletzt gesucht', suggest:'Vorschläge', deliveryfrom:'Lieferung ab', pickuphere:'Abholung am Steintorweg 4', orderas:'Bestellung als', change:'Ändern', clear:'Löschen',
   hmin:'Min.', addcart:'Hinzufügen', options:'Optionen', orders:'Bestellungen', cancelnote:'Zum Stornieren bitte das Geschäft anrufen.', whatsapp:'WhatsApp', viewcart:'Warenkorb ansehen'
  }
@@ -289,7 +289,7 @@ function footer() {
    <div><img src="logo.png" alt="Stein & Olive"><p style="margin:10px 0 0">${esc(s.address || 'Steintorweg 4, 20099 Hamburg')}</p>${s.phone ? `<a href="tel:${esc(s.phone)}">${esc(s.phone)}</a>` : ''}</div>
    <div><h4>${esc(t('shops'))}</h4>${visibleShops().map(sh => `<a href="#/shop/${encodeURIComponent(sh.id)}">${esc(L(sh, 'name'))}</a>`).join('')}</div>
    <div><h4>${esc(t('contact'))}</h4>${s.whatsapp ? `<a href="https://wa.me/${esc(waNum(s.whatsapp))}" target="_blank" rel="noopener noreferrer">WhatsApp</a>` : ''}${safeUrl(s.instagram) ? `<a href="${esc(safeUrl(s.instagram))}" target="_blank" rel="noopener noreferrer">Instagram</a>` : ''}${s.email ? `<a href="mailto:${esc(s.email)}">${esc(s.email)}</a>` : ''}
-    <a href="#/impressum">Impressum</a><a href="#/datenschutz">${esc(t('privacy'))}</a><a href="#/agb">${esc(t('terms'))}</a><a href="#/login">${esc(t('staff'))}</a></div>
+    <a href="#/impressum">Impressum</a><a href="#/datenschutz">${esc(t('privacy'))}</a><a href="#/agb">${esc(t('terms'))}</a></div>
   </div><div class="cp">© ${new Date().getFullYear()} ${esc(s.name || 'Stein & Olive by Karam')}. ${esc(t('vatincl'))}</div></footer>`;
 }
 function cartBar() {
@@ -317,7 +317,7 @@ function drawer() {
    ${visibleShops().map(s => `<a href="#/shop/${encodeURIComponent(s.id)}">${shopIc(s.type)} ${esc(L(s, 'name'))}</a>`).join('')}
    <hr><a href="#/cart">${ic('bag')} ${esc(t('cart'))}</a><a href="#/account">${ic('user')} ${esc(t('account'))}</a>
    <button class="m" id="dTheme">${dark ? ic('sun') + ' ' + esc(t('light')) : ic('moon') + ' ' + esc(t('dark'))}</button>
-   <hr><a href="#/login">${ic('key')} ${esc(t('staff'))}</a></div>`;
+</div>`;
   d.onclick = e => { if (e.target === d || e.target.closest('a')) d.remove(); };
   document.body.appendChild(d);
   $('#dTheme', d).onclick = () => { document.body.classList.toggle('dark'); ls.set('so_dark', document.body.classList.contains('dark')); d.remove(); };
@@ -516,15 +516,16 @@ function zoneFor(plz) { return (S.settings.zones || []).find(z => String(z.plz |
 async function vCheckout() {
   if (!S.cart.length) { location.hash = '#/cart'; return; }
   await loadCustomer();
+  if ((S.settings.payments || {}).stripe && S.stripeReady == null) { try { S.stripeReady = !!(await anon().rpc('stripe_ready')).data; } catch (_) { S.stripeReady = false; } }
   const s = S.settings; const pay = s.payments || {}; const c = S.cust;
   const canDel = s.delivery !== false, canPick = s.pickup !== false;
   const saved = Object.assign({}, ls.get('so_cust', {}), c ? { name: c.name, phone: c.phone, email: c.email, street: c.street || (ls.get('so_cust', {}).street || ''), plz: c.plz || (ls.get('so_cust', {}).plz || ''), city: c.city, address_note: c.address_note } : {});
   const st = { mode: saved.mode && ((saved.mode === 'delivery' && canDel) || (saved.mode === 'pickup' && canPick)) ? saved.mode : (canDel ? 'delivery' : 'pickup'), when: 'asap', pay: 'cash' };
   const allOpen = cartShops().every(id => isOpenNow(shopById(id)));
   if (!allOpen) st.when = 'later';
-  const payOpts = [['cash', pay.cash !== false], ['card', !!pay.card], ['transfer', !!pay.transfer && !!s.bank_iban], ['paypal', !!pay.paypal && !!pay.paypal_me]].filter(x => x[1]).map(x => x[0]);
+  const payOpts = [['stripe', !!pay.stripe && S.stripeReady], ['cash', pay.cash !== false], ['card', !!pay.card], ['transfer', !!pay.transfer && !!s.bank_iban], ['paypal', !!pay.paypal && !!pay.paypal_me]].filter(x => x[1]).map(x => x[0]);
   if (!payOpts.includes(st.pay)) st.pay = payOpts[0];
-  const payIc = { cash: 'receipt', card: 'tag', paypal: 'globe', transfer: 'store' };
+  const payIc = { cash: 'receipt', card: 'tag', paypal: 'globe', transfer: 'store', stripe: 'tag' };
   page(`<div class="sec" style="margin-top:6px"><h2>${esc(t('checkout'))}</h2></div>
    ${c ? `<div class="infobox">${ic('user', 's')}<span>${esc(t('orderas'))} <b>${esc(c.name || c.email)}</b></span></div>` : `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:200px">${esc(t('loginhint'))}</span><a class="btn s o" href="#/account?next=checkout">${esc(t('login'))}</a></div>`}
    ${canDel && canPick ? `<div class="seg" id="mode"><button data-v="delivery">${ic('truck', 's')} ${esc(t('deliv'))}</button><button data-v="pickup">${ic('store', 's')} ${esc(t('pickup'))}</button></div>` : ''}
@@ -597,6 +598,7 @@ async function vCheckout() {
     if (error) { toast(errMsg(error), 1); if (/stock|product/.test(error.message)) loadData().catch(() => {}); return; }
     const mine = ls.get('so_orders', []); mine.unshift({ id: data.id, token: data.token, at: Date.now() }); ls.set('so_orders', mine.slice(0, 30));
     S.cart = []; saveCart(); toast(t('sent'));
+    if (st.pay === 'stripe') { location.hash = '#/track/' + data.token; return payStripe(data.token); }
     if (st.pay === 'paypal' && pay.paypal_me) { const me = String(pay.paypal_me).replace(/^.*paypal\.me\//i, '').replace(/[^A-Za-z0-9._-]/g, ''); if (me) window.open(`https://www.paypal.me/${me}/${(+data.total).toFixed(2)}EUR`, '_blank', 'noopener'); }
     loadData().catch(() => {});
     location.hash = '#/track/' + data.token;
@@ -605,7 +607,90 @@ async function vCheckout() {
 const STEPS_D = ['new', 'preparing', 'ready', 'on_way', 'delivered'], STEPS_P = ['new', 'preparing', 'ready', 'picked_up'];
 const STEP_IC = { new: 'inbox', preparing: 'chef', ready: 'check', on_way: 'truck', delivered: 'home', picked_up: 'bag' };
 function qrSvg(text) { const q = qrcode(0, 'M'); q.addData(text); q.make(); return q.createSvgTag({ cellSize: 6, margin: 2, scalable: true }); }
+async function payStripe(token, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const r = await fetch(CFG.url + '/functions/v1/stripe', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: CFG.key }, body: JSON.stringify({ token }) });
+    const j = await r.json();
+    if (j && j.url && /^https:\/\/checkout\.stripe\.com\//.test(j.url)) { location.href = j.url; return; }
+    toast(j && j.error === 'paid' ? t('paid') : t('payfail'), 1);
+  } catch (_) { toast(t('payfail'), 1); }
+  if (btn) btn.disabled = false;
+}
 let trackTimer = null;
+/* ---------- live map (Leaflet, OpenStreetMap, OSRM) ---------- */
+const TM = { token: null, el: null, map: null, drv: null, dst: null, line: null, dest: null, routeAt: 0, routeFrom: null, eta: null };
+function loadLeaflet() {
+  if (window.L && window.L.map) return Promise.resolve();
+  if (loadLeaflet.p) return loadLeaflet.p;
+  loadLeaflet.p = new Promise((ok, no) => {
+    const c = document.createElement('link'); c.rel = 'stylesheet'; c.href = 'lib/leaflet.css'; document.head.appendChild(c);
+    const sc = document.createElement('script'); sc.src = 'lib/leaflet.js'; sc.onload = ok; sc.onerror = no; document.head.appendChild(sc);
+  });
+  return loadLeaflet.p;
+}
+async function geocode(o) {
+  const key = 'so_geo_' + o.token; const c = ls.get(key, null); if (c) return c;
+  const q = `${o.street}, ${o.plz} ${o.city}, Deutschland`;
+  try {
+    const r = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=de&q=' + encodeURIComponent(q), { headers: { 'Accept-Language': 'de' } });
+    const j = await r.json(); if (!j || !j[0]) return null;
+    const g = { lat: +j[0].lat, lng: +j[0].lon }; ls.set(key, g); return g;
+  } catch (_) { return null; }
+}
+async function osrmRoute(from, to) {
+  try {
+    const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`);
+    const j = await r.json(); const rt = j && j.routes && j.routes[0]; if (!rt) return null;
+    return { pts: rt.geometry.coordinates.map(c => [c[1], c[0]]), sec: rt.duration, m: rt.distance };
+  } catch (_) { return null; }
+}
+const DRV_IC = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h11v9H3zM14 9h4l3 3v3h-7z"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg>';
+const HOME_IC = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4l8 7v9h-5v-6H9v6H4z"/></svg>';
+async function liveMap(slot, o) {
+  if (!slot) return;
+  await loadLeaflet().catch(() => {}); if (!window.L || !window.L.map) { slot.innerHTML = ''; return; }
+  const Lf = window.L;
+  if (TM.token !== o.token || !TM.el) {
+    if (TM.map) TM.map.remove();
+    Object.assign(TM, { token: o.token, el: document.createElement('div'), map: null, drv: null, dst: null, line: null, dest: null, routeAt: 0, routeFrom: null, eta: null });
+    TM.el.className = 'lmap';
+  }
+  slot.replaceWith(TM.el); TM.el.id = 'mapSlot';
+  const drvPos = [+o.driver_lat, +o.driver_lng];
+  if (!TM.map) {
+    TM.map = Lf.map(TM.el, { zoomControl: true, attributionControl: true, scrollWheelZoom: false, tap: true }).setView(drvPos, 15);
+    Lf.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(TM.map);
+  }
+  setTimeout(() => TM.map && TM.map.invalidateSize(), 50);
+  const drvIcon = Lf.divIcon({ className: 'mk-drv', html: `<span>${DRV_IC}</span>`, iconSize: [44, 44], iconAnchor: [22, 22] });
+  if (!TM.drv) TM.drv = Lf.marker(drvPos, { icon: drvIcon, zIndexOffset: 1000, title: t('driver') }).addTo(TM.map); else TM.drv.setLatLng(drvPos);
+  if (!TM.dest) TM.dest = await geocode(o);
+  if (TM.dest && !TM.dst) TM.dst = Lf.marker([TM.dest.lat, TM.dest.lng], { icon: Lf.divIcon({ className: 'mk-home', html: `<span>${HOME_IC}</span>`, iconSize: [36, 44], iconAnchor: [18, 42] }), title: t('address') }).addTo(TM.map);
+  if (TM.dest) {
+    const moved = !TM.routeFrom || Math.hypot(TM.routeFrom[0] - drvPos[0], TM.routeFrom[1] - drvPos[1]) > 0.0007;
+    if (moved && Date.now() - TM.routeAt > 40000) {
+      TM.routeAt = Date.now(); TM.routeFrom = drvPos;
+      const r = await osrmRoute({ lat: drvPos[0], lng: drvPos[1] }, TM.dest);
+      const pts = r ? r.pts : [drvPos, [TM.dest.lat, TM.dest.lng]];
+      if (TM.line) TM.line.setLatLngs(pts); else TM.line = Lf.polyline(pts, { color: '#4F5B2E', weight: 6, opacity: .85, lineCap: 'round', dashArray: r ? null : '8 10' }).addTo(TM.map);
+      TM.eta = r ? { sec: r.sec, m: r.m, at: Date.now() } : null;
+      TM.map.fitBounds(Lf.latLngBounds([drvPos, [TM.dest.lat, TM.dest.lng]]).pad(0.25), { maxZoom: 16 });
+    }
+  }
+  const e = $('#etaLine');
+  if (e) e.innerHTML = TM.eta ? `${ic('clock', 's')} ${esc(t('eta_drive'))} <b>${Math.max(1, Math.round((TM.eta.sec - (Date.now() - TM.eta.at) / 1000) / 60))} ${esc(t('min'))}</b> · ${(TM.eta.m / 1000).toLocaleString(S.lang === 'ar' ? 'ar' : 'de-DE', { maximumFractionDigits: 1 })} km` : '';
+}
+function etaText(o) {
+  const prep = +(S.settings.prep_min || 25), drive = +(S.settings.drive_min || 15);
+  if (['delivered', 'picked_up', 'cancelled', 'on_way'].includes(o.status)) return '';
+  const base = o.scheduled_at ? new Date(o.scheduled_at) : new Date(new Date(o.created_at).getTime() + (prep + (+o.queue || 0) * 4 + (o.mode === 'delivery' ? drive : 0)) * 60000);
+  if (o.scheduled_at) return `${t('eta_sched')} ${fmtTime(base)}`;
+  if (base < new Date()) return t('eta_soon');
+  const a = new Date(base.getTime() - 5 * 60000), b = new Date(base.getTime() + 10 * 60000);
+  return `${o.mode === 'delivery' ? t('eta_deliv') : t('eta_pick')} ${fmtTime(a)} – ${fmtTime(b)}`;
+}
+const fmtTime = d => d.toLocaleTimeString(S.lang === 'ar' ? 'ar-SY' : 'de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' });
 function ago(ts) {
   const m = Math.max(0, Math.round((Date.now() - new Date(ts).getTime()) / 60000));
   if (!ts || isNaN(m)) return '';
@@ -631,14 +716,19 @@ async function vTrack(token) {
       ${o.status === 'cancelled' ? `<div class="warnbox" style="justify-content:center">${esc(t('st_cancelled'))}</div>` : `<div class="steps">${steps.map((s, i) => `<div class="stp ${i <= idx ? 'on' : ''}"><i>${ic(STEP_IC[s], 's')}</i>${esc(t('st_' + s))}</div>`).join('')}</div>`}
       ${o.handover_code && !done && o.status !== 'cancelled' ? `<div class="hcode"><div class="note">${esc(o.mode === 'delivery' ? t('code_d') : t('code_p'))}</div><b dir="ltr">${esc(String(o.handover_code).split('').join(' '))}</b></div>` : ''}
       ${o.mode === 'pickup' && !done && o.status !== 'cancelled' ? `<div class="note" style="margin-top:12px">${esc(t('showqr'))}</div><div class="qr">${qrSvg('SO:' + o.token)}</div>` : ''}
+      ${etaText(o) ? `<div class="etabox">${ic('clock', 's')} ${esc(etaText(o))}</div>` : ''}
       ${!done && o.status !== 'cancelled' ? `<div class="note">${esc(t('cancelnote'))}</div>` : ''}</div>
      ${o.mode === 'delivery' && o.driver_name ? `<div class="card"><h3>${ic('truck')} ${esc(t('driver'))}: ${esc(o.driver_name)}</h3>${o.driver_phone ? `<a class="btn s o" href="tel:${esc(o.driver_phone)}">${ic('phone', 's')} ${esc(o.driver_phone)}</a>` : ''}
-       ${o.status === 'on_way' ? (isFinite(lat) && isFinite(lng) && lat ? `<iframe class="map" title="Karte" loading="lazy" style="margin-top:12px" src="https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01},${lat - 0.006},${lng + 0.01},${lat + 0.006}&layer=mapnik&marker=${lat},${lng}"></iframe><div class="note" style="margin-top:6px">${esc(t('posat'))} ${esc(ago(o.driver_pos_at))}</div>` : `<div class="note" style="margin-top:10px">${ic('clock', 's')} ${esc(t('posnone'))}</div>`) : ''}</div>` : ''}
+       ${o.status === 'on_way' ? (isFinite(lat) && isFinite(lng) && lat ? `<div id="mapSlot" class="lmap"></div><div class="maplegend"><span><i class="lg-d"></i>${esc(t('driver'))}</span><span><i class="lg-h"></i>${esc(t('address'))}</span></div><div class="etaline" id="etaLine"></div><div class="note" style="margin-top:4px">${esc(t('posat'))} ${esc(ago(o.driver_pos_at))}</div>` : `<div class="note" style="margin-top:10px">${ic('clock', 's')} ${esc(t('posnone'))}</div>`) : ''}</div>` : ''}
      ${done ? shops.filter(sid => !o.reviews.includes(sid)).map(sid => `<div class="card rv" data-s="${esc(sid)}"><h3>${esc(t('rate'))} ${esc(L(shopById(sid) || {}, 'name'))}?</h3>
         <div class="stars">${[1, 2, 3, 4, 5].map(n => `<span data-n="${n}" role="button" aria-label="${n}">${ic('star')}</span>`).join('')}</div><input type="text" maxlength="300" placeholder="${esc(t('comment'))}" style="margin-top:10px"><button class="btn s" style="margin-top:10px">${esc(t('send'))}</button></div>`).join('') : ''}
+     ${o.status === 'delivered' && safeUrl(o.proof_url) ? `<div class="card"><h3>${ic('camera')} ${esc(t('proof'))}</h3><img class="proofimg" src="${esc(safeUrl(o.proof_url))}" alt="${esc(t('proof'))}" loading="lazy"></div>` : ''}
      ${o.payment === 'transfer' && !o.paid && o.status !== 'cancelled' ? bankBox(o) : ''}
+     ${o.payment === 'stripe' && !o.paid && o.status !== 'cancelled' ? `<div class="card paycard"><h3>${ic('tag')} ${esc(t('paytitle'))}</h3><p class="note">${esc(t('payopen'))}</p><button class="btn full" id="payNow">${esc(t('paynow'))} · ${money(o.total)}</button></div>` : ''}
      <div class="card" id="rcpt">${receiptHtml(o)}</div>
      <div class="acts noprint"><a class="btn" href="#/invoice/${esc(o.token)}">${ic('receipt', 's')} ${esc(t('invoice'))}</a>${dw ? `<a class="btn o" target="_blank" rel="noopener noreferrer" href="https://wa.me/${esc(dw)}?text=${encodeURIComponent((S.lang === 'ar' ? 'مرحبا، بخصوص طلبي رقم #' : 'Hallo, zu meiner Bestellung #') + o.id)}">${ic('chat', 's')} ${esc(t('whatsapp'))}</a>` : ''}<a class="btn o" href="#/">${esc(t('home'))}</a></div>`, { noBar: 1 });
+    if ($('#mapSlot')) liveMap($('#mapSlot'), o);
+    if ($('#payNow')) $('#payNow').onclick = () => payStripe(o.token, $('#payNow'));
     $$('[data-copy]').forEach(b => b.onclick = () => navigator.clipboard.writeText(b.dataset.copy).then(() => toast(t('copied'))));
     $$('.rv').forEach(card => { let n = 0; const sp = $$('.stars span', card);
       sp.forEach(s => s.onclick = () => { n = +s.dataset.n; sp.forEach(x => x.classList.toggle('on', +x.dataset.n <= n)); });
@@ -709,7 +799,7 @@ function invoiceHtml(o) {
       <td class="n">${i.unit === 'kg' ? q.toLocaleString('de-DE', { maximumFractionDigits: 3 }) + ' kg' : q}</td><td class="n">${unit}</td>${ku ? '' : `<td class="n">${+i.vat} %</td>`}<td class="n">${de(i.line_total)}</td></tr>`;
   }).join('')).join('');
   const vatRows = Object.keys(gross).sort().map(v => { const g = r2(gross[v]); const net = r2(g / (1 + v / 100)); return `<tr><td>${+v} %</td><td class="n">${de(net)}</td><td class="n">${de(r2(g - net))}</td><td class="n">${de(g)}</td></tr>`; }).join('');
-  const PAYDE = { cash: 'Barzahlung bei Übergabe', card: 'EC-Karte bei Übergabe', paypal: 'PayPal', transfer: 'Überweisung' };
+  const PAYDE = { cash: 'Barzahlung bei Übergabe', card: 'EC-Karte bei Übergabe', paypal: 'PayPal', transfer: 'Überweisung', stripe: 'Kartenzahlung online' };
   return `<article class="inv">
    <header class="inv-h"><img src="logo-dark.png" alt="Stein & Olive"><div class="inv-t"><h1 class="bi"><span>Rechnung</span><span class="ar" dir="rtl">فاتورة</span></h1>
      <table class="kv"><tr><td>Rechnungs-Nr.</td><td>SO-${+o.id}</td></tr><tr><td>Datum</td><td>${new Date(o.created_at).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}</td></tr>
@@ -904,7 +994,7 @@ async function route() {
   if (window.Admin && Admin.leave) Admin.leave(r);
   window.scrollTo(0, 0);
   page.nav = true;
-  if (r === 'login' || r === 'admin' || r === 'driver') return window.Admin.route(r, a, h.split('/').slice(1));
+  if (r === 'login' || r === 'team' || r === 'admin' || r === 'driver') return window.Admin.route(r, a, h.split('/').slice(1));
   if (r === 'shop') return vShop(decodeURIComponent(a || ''));
   if (r === 'cart') return vCart();
   if (r === 'checkout') return vCheckout();
@@ -927,6 +1017,6 @@ async function start() {
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
-window.App = { start, sb, S, t, L, LL, esc, money, fq, $, $$, toast, modal, closeModal, errMsg, loadData, fetchAll, shopById, prodById, page, setLang,
+window.App = { start, sb, S, CFG, t, L, LL, esc, money, fq, $, $$, toast, modal, closeModal, errMsg, loadData, fetchAll, shopById, prodById, page, setLang,
   ALLERGENS, DAYS, fmtDate, qrSvg, receiptHtml, invoiceHtml, route, isOpenNow, uid, priceLabel, priceText, ic, shopIc, bgImg, safeUrl, clean, allow, waNum, DOMAIN: CFG.loginDomain };
 })();

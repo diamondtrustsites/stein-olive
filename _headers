@@ -1,7 +1,7 @@
 # Sicherheits-Header (gelten nur, wenn die Seite später über Netlify oder Cloudflare Pages läuft;
 # GitHub Pages kann keine Header setzen – dort gilt die CSP im <meta>-Tag von index.html).
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://xboagmemkfxlkaqblcco.supabase.co https://commons.wikimedia.org https://upload.wikimedia.org; font-src 'self'; connect-src 'self' https://xboagmemkfxlkaqblcco.supabase.co wss://xboagmemkfxlkaqblcco.supabase.co; frame-src https://www.openstreetmap.org; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://xboagmemkfxlkaqblcco.supabase.co https://commons.wikimedia.org https://upload.wikimedia.org https://tile.openstreetmap.org; font-src 'self'; connect-src 'self' https://xboagmemkfxlkaqblcco.supabase.co wss://xboagmemkfxlkaqblcco.supabase.co https://router.project-osrm.org https://nominatim.openstreetmap.org https://api.stripe.com; frame-src https://www.openstreetmap.org; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY

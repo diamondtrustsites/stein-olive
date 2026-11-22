@@ -385,3 +385,49 @@ input.bad,select.bad,textarea.bad{border-color:var(--bad)!important;box-shadow:0
 .hcode{margin:14px auto 4px;padding:12px 16px;border-radius:var(--r2);background:var(--olive-soft);max-width:340px}
 .hcode b{display:block;font-size:34px;letter-spacing:.18em;font-weight:700;color:var(--ink);margin-top:2px;font-variant-numeric:tabular-nums}
 .codein{font-size:30px!important;text-align:center;letter-spacing:.5em;font-weight:700;height:64px!important;font-variant-numeric:tabular-nums}
+
+/* ---------- team login ---------- */
+.login-wrap{min-height:100vh;display:grid;place-items:center;padding:24px 16px;background:var(--bg)}
+.login-card{width:min(440px,100%);background:var(--surface);border:1px solid var(--line);border-radius:var(--r3);padding:24px 20px;box-shadow:var(--shadow);animation:rise .4s cubic-bezier(.2,.7,.2,1)}
+.login-logo{width:150px;display:block;margin:0 auto 14px}
+body.dark .login-logo{filter:invert(1) hue-rotate(180deg) brightness(1.1)}
+.login-hd{display:flex;align-items:center;justify-content:space-between;gap:10px}.login-hd h1{font-size:22px}
+.acc-pick{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0 6px}
+.acc-opt{display:flex;gap:10px;align-items:center;text-align:start;background:var(--raise);border:1.5px solid var(--line);border-radius:var(--r2);padding:12px;color:var(--ink);min-height:62px;cursor:pointer}
+.acc-opt svg{flex:none;color:var(--olive)}
+.acc-opt b{display:block;font-size:15px;line-height:1.25}.acc-opt small{display:block;color:var(--mute);font-size:12px}
+.acc-opt.on{border-color:var(--olive);background:var(--olive-soft);box-shadow:0 0 0 3px var(--olive-soft)}
+.acc-opt:active{transform:scale(.97)}
+
+/* ---------- live map ---------- */
+.lmap{height:300px;border-radius:var(--r2);overflow:hidden;margin-top:12px;border:1px solid var(--line);background:#E8E4DA;z-index:0;position:relative}
+.mk-drv span{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:var(--olive);color:#F6F4EF;border:3px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.35);animation:drvPulse 2s ease-out infinite}
+@keyframes drvPulse{0%{box-shadow:0 0 0 0 rgba(79,91,46,.55),0 4px 14px rgba(0,0,0,.35)}100%{box-shadow:0 0 0 16px rgba(79,91,46,0),0 4px 14px rgba(0,0,0,.35)}}
+.mk-home span{display:grid;place-items:center;width:36px;height:36px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#1E2219;color:#F6F4EF;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.mk-home span svg{transform:rotate(45deg)}
+.maplegend{display:flex;gap:16px;font-size:13px;color:var(--mute);margin-top:8px}.maplegend span{display:inline-flex;align-items:center;gap:6px}
+.maplegend i{width:12px;height:12px;border-radius:50%;display:inline-block}.lg-d{background:var(--olive)}.lg-h{background:#1E2219;border-radius:50% 50% 50% 0!important}
+.etaline{margin-top:8px;font-size:15px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}.etaline:empty{display:none}
+.etabox{display:inline-flex;gap:8px;align-items:center;margin:12px auto 0;padding:8px 14px;border-radius:999px;background:var(--sand-soft);font-size:14px;font-weight:500}
+.leaflet-container{font-family:inherit}
+.proofpick{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;padding:12px;border:1.5px dashed var(--line);border-radius:var(--r2);color:var(--ink2);cursor:pointer;font-weight:500}
+.proofpick:active{transform:scale(.98)}
+.proofimg{width:100%;max-height:420px;object-fit:cover;border-radius:var(--r2);margin-top:8px}
+
+/* ---------- Bon (80 mm slip) ---------- */
+#bonArea{display:none}
+@media print{
+  body.bonprint>*:not(#bonArea){display:none!important}
+  body.bonprint #bonArea{display:block!important}
+  body.bonprint{background:#fff!important}
+}
+.bon{width:72mm;font-family:Plex,Arial,sans-serif;color:#000;font-size:13px;line-height:1.35;direction:ltr}
+.bon-no{font-size:34px;font-weight:700;text-align:center}
+.bon-m{text-align:center;font-weight:700;border-top:2px solid #000;border-bottom:2px solid #000;padding:3px 0;margin:4px 0}
+.bon-t{text-align:center;margin-bottom:6px}
+.bon-s{font-weight:700;margin-top:8px;border-bottom:1px dashed #000;padding-bottom:2px;text-transform:none}
+.bon-i{display:flex;gap:8px;padding:4px 0;border-bottom:1px dotted #999}
+.bon-i b{min-width:46px;font-size:15px}.bon-i span{flex:1}.bon-i small{display:block;font-size:12px}
+.bon-i small[dir=rtl]{text-align:right}
+.bon-n{margin-top:8px;padding:6px;border:1.5px solid #000;font-weight:600}
+.bon-c{margin-top:8px;text-align:center;font-size:12px}

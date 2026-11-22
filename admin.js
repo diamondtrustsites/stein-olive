@@ -8,7 +8,7 @@ const ST = { orders: [], drivers: [], seen: null, ch: null, poll: null, sound: l
 
 const STATUS = { new: ['جديد', 'Neu', 'warn'], preparing: ['قيد التحضير', 'In Zubereitung', 'be'], ready: ['جاهز', 'Fertig', 'ok'], on_way: ['بالطريق', 'Unterwegs', 'be'], delivered: ['تم التوصيل', 'Geliefert', 'ok'], picked_up: ['تم الاستلام', 'Abgeholt', 'ok'], cancelled: ['ملغي', 'Storniert', 'bad'], rejected: ['مرفوض', 'Abgelehnt', 'bad'] };
 const stPill = s => `<span class="pill ${STATUS[s][2]}">${esc(A(STATUS[s][0], STATUS[s][1]))}</span>`;
-const PAY = { cash: ['كاش', 'Bar'], card: ['بطاقة', 'Karte'], paypal: ['PayPal', 'PayPal'], transfer: ['تحويل بنكي', 'Überweisung'] };
+const PAY = { cash: ['كاش', 'Bar'], card: ['بطاقة', 'Karte'], paypal: ['PayPal', 'PayPal'], transfer: ['تحويل بنكي', 'Überweisung'], stripe: ['بطاقة أونلاين', 'Karte online'] };
 const err = e => toast(App.errMsg(e), 1);
 
 /* ---------- auth ---------- */
@@ -20,27 +20,52 @@ async function session() {
   S.staff = st && st.active ? st : null;
   return S.staff;
 }
-function vLogin() {
-  App.page(`<div class="card" style="max-width:420px;margin:30px auto"><img src="logo.png" style="width:170px;margin:0 auto 10px">
-    <h3 style="text-align:center">${esc(A('دخول الموظفين', 'Personal-Login'))}</h3>
-    <label class="f"><span>${esc(A('اسم المستخدم', 'Benutzername'))}</span><input type="text" id="lu" autocapitalize="off" autocomplete="username"></label>
-    <label class="f"><span>${esc(A('كلمة السر', 'Passwort'))}</span><input type="password" id="lp" autocomplete="current-password"></label>
-    <button class="btn full" id="lb">${esc(A('دخول', 'Anmelden'))}</button></div>`, { noBar: 1 });
+async function vLogin() {
+  document.body.classList.add('staff');
+  document.body.classList.remove('tvmode');
+  $('#app').innerHTML = `<main class="login-wrap"><div class="login-card">
+    <img class="login-logo" src="logo-dark.png" alt="Stein & Olive">
+    <div class="login-hd"><h1>${esc(A('دخول الفريق', 'Team-Login'))}</h1><button class="ib" id="llang">${esc(App.t('lang'))}</button></div>
+    <p class="note">${esc(A('اختار حسابك واكتب كلمة السر.', 'Konto wählen und Passwort eingeben.'))}</p>
+    <div class="acc-pick" id="lacc" role="radiogroup" aria-label="Konto"><div class="note">…</div></div>
+    <label class="f"><span>${esc(A('كلمة السر', 'Passwort'))}</span><input type="password" id="lp" autocomplete="current-password" maxlength="200"></label>
+    <button class="btn full" id="lb">${esc(A('دخول', 'Anmelden'))}</button>
+    <button class="lnk" id="lman" style="display:block;margin:14px auto 0">${esc(A('دخول باسم المستخدم', 'Mit Benutzername anmelden'))}</button>
+    <label class="f" id="luw" hidden><span>${esc(A('اسم المستخدم', 'Benutzername'))}</span><input type="text" id="lu" autocapitalize="off" autocomplete="username" maxlength="120"></label>
+  </div></main>`;
+  $('#llang').onclick = () => { App.setLang(S.lang === 'ar' ? 'de' : 'ar'); vLogin(); };
+  let sel = localStorage.getItem('so_last_staff') || '';
+  const roleIc = { admin: 'key', shop: 'store', driver: 'truck' };
+  const label = a => a.r === 'admin' ? A('الإدارة', 'Verwaltung') : a.r === 'driver' ? (A('سائق', 'Fahrer') + (a.n && !/^fahrer$/i.test(a.n) ? ' · ' + a.n : '')) : (L(App.shopById(a.s) || {}, 'name') || a.n || a.u);
+  const sub = a => a.r === 'admin' ? 'Admin' : a.r === 'driver' ? A('تطبيق السائق', 'Fahrer-App') : A('محل', 'Geschäft');
+  const { data, error } = await sb.rpc('staff_logins');
+  const list = (!error && Array.isArray(data)) ? data : [];
+  const box = $('#lacc'); if (!box) return;
+  if (!list.length) { box.hidden = true; $('#luw').hidden = false; $('#lman').hidden = true; }
+  else {
+    if (!list.some(a => a.u === sel)) sel = '';
+    box.innerHTML = list.map(a => `<button type="button" role="radio" aria-checked="${a.u === sel}" class="acc-opt${a.u === sel ? ' on' : ''}" data-u="${esc(a.u)}">${ic(roleIc[a.r] || 'user')}<span><b>${esc(label(a))}</b><small>${esc(sub(a))}</small></span></button>`).join('');
+    $$('.acc-opt', box).forEach(b => b.onclick = () => { sel = b.dataset.u; $$('.acc-opt', box).forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', x === b); }); $('#lp').focus(); });
+  }
+  $('#lman').onclick = () => { $('#luw').hidden = false; $('#lman').hidden = true; $('#lu').focus(); };
   const go = async () => {
-    let u = App.clean($('#lu').value, 120).toLowerCase(); if (!u) return;
+    let u = !$('#luw').hidden && $('#lu').value.trim() ? App.clean($('#lu').value, 120).toLowerCase() : sel;
+    if (!u) return toast(A('اختار الحساب أول شي.', 'Bitte zuerst ein Konto wählen.'), 1);
+    if (!$('#lp').value) return toast(A('اكتب كلمة السر.', 'Bitte Passwort eingeben.'), 1);
     if (!App.allow('stafflogin', 5, 60)) return;
-    if (!u.includes('@')) u += DOMAIN;
+    const email = u.includes('@') ? u : u + DOMAIN;
     $('#lb').disabled = true;
-    const { error } = await sb.auth.signInWithPassword({ email: u, password: $('#lp').value });
+    const { error } = await sb.auth.signInWithPassword({ email, password: $('#lp').value });
     $('#lb').disabled = false;
-    if (error) return toast(A('اسم المستخدم أو كلمة السر غلط', 'Benutzername oder Passwort falsch'), 1);
+    if (error) { $('#lp').classList.add('bad'); $('#lp').select(); return toast(A('كلمة السر غلط.', 'Passwort falsch.'), 1); }
     S.staff = null; const st = await session();
     if (!st) { await sb.auth.signOut(); return toast(A('الحساب غير مفعّل', 'Konto nicht freigeschaltet'), 1); }
+    try { localStorage.setItem('so_last_staff', u.replace(DOMAIN, '')); } catch (_) {}
     location.hash = st.role === 'driver' ? '#/driver' : '#/admin/orders';
   };
   $('#lb').onclick = go; $('#lp').onkeydown = e => { if (e.key === 'Enter') go(); };
 }
-async function logout() { stopLive(); stopGeo(); await sb.auth.signOut(); S.staff = null; location.hash = '#/login'; }
+async function logout() { stopLive(); stopGeo(); await sb.auth.signOut(); S.staff = null; location.hash = '#/team'; }
 
 /* ---------- layout ---------- */
 const MENU = [
@@ -108,7 +133,7 @@ async function fetchOrders() {
   if (error) throw error;
   data.forEach(o => o.order_items.sort((a, b) => a.id - b.id));
   const fresh = data.filter(o => o.status === 'new' && o.order_items.some(i => i.status === 'new'));
-  if (ST.seen) { const nw = fresh.filter(o => !ST.seen.has(o.id)); if (nw.length) { beep(); notify(A('طلب جديد #', 'Neue Bestellung #') + nw.map(o => o.id).join(', #')); } }
+  if (ST.seen) { const nw = fresh.filter(o => !ST.seen.has(o.id)); if (nw.length) { beep(); notify(A('طلب جديد #', 'Neue Bestellung #') + nw.map(o => o.id).join(', #')); if (autoPrintOn()) nw.slice().reverse().forEach(o => queueBon(o)); } }
   ST.seen = new Set(data.map(o => o.id));
   ST.orders = data;
   return data;
@@ -130,12 +155,16 @@ async function secOrders(main) {
   if (isRest && localStorage.getItem('so_kds') == null) ST.kds = true; else ST.kds = localStorage.getItem('so_kds') === '1';
   main.innerHTML = `<div class="acts noprint" style="margin-bottom:6px">
      <button class="btn s ${ST.sound ? 'g' : 'o'}" id="snd">${ic(ST.sound ? 'bell' : 'belloff', 's')} ${esc(A('الصوت', 'Ton'))}</button>
+     <button class="btn s o" id="pushB">${ic('belloff', 's')}</button>
+     <button class="btn s ${autoPrintOn() ? 'g' : 'o'}" id="apB">${ic('print', 's')} ${esc(A('طباعة تلقائية', 'Auto-Druck'))}</button>
      <button class="btn s o" id="kdsB">${ST.kds ? ' ' + esc(A('عرض عادي', 'Liste')) : ' ' + esc(A('شاشة المطبخ', 'Küchenansicht'))}</button>
      <button class="btn s o" id="rf" aria-label="Neu laden">${ic('refresh', 's')}</button></div>
     <div class="tabs" id="otabs">${[['active', 'الحالية', 'Aktiv'], ['done', 'المنتهية', 'Erledigt'], ['cancelled', 'الملغية', 'Storniert'], ['all', 'الكل', 'Alle']].map(x => `<button data-t="${x[0]}" class="${ST.tab === x[0] ? 'on' : ''}">${esc(A(x[1], x[2]))} <span id="cnt_${x[0]}"></span></button>`).join('')}</div>
     <input type="search" id="oq" placeholder="${esc(A('بحث برقم الطلب أو الاسم أو الهاتف', 'Suche: Nr., Name, Telefon'))}" style="margin-bottom:8px">
     <div id="olist" class="${ST.kds ? 'kds' : ''}"><div class="empty">…</div></div>`;
   $('#snd').onclick = () => { ST.sound = !ST.sound; localStorage.setItem('so_sound', ST.sound ? '1' : '0'); if (ST.sound) { beep(); if (window.Notification && Notification.permission === 'default') Notification.requestPermission(); } secOrders(main); };
+  paintPush($('#pushB')); $('#pushB').onclick = () => pushToggle($('#pushB'));
+  $('#apB').onclick = () => { const on = !autoPrintOn(); localStorage.setItem('so_autoprint', on ? '1' : '0'); toast(on ? A('كل طلب جديد رح ينطبع بون لحالو على هالجهاز. خلّي الصفحة مفتوحة.', 'Jede neue Bestellung wird auf diesem Gerät automatisch gedruckt. Seite offen lassen.') : A('الطباعة التلقائية انطفت.', 'Auto-Druck aus.')); secOrders(main); };
   $('#kdsB').onclick = () => { ST.kds = !ST.kds; localStorage.setItem('so_kds', ST.kds ? '1' : '0'); secOrders(main); };
   $('#rf').onclick = refresh;
   $$('#otabs button').forEach(b => b.onclick = () => { ST.tab = b.dataset.t; $$('#otabs button').forEach(x => x.classList.toggle('on', x === b)); draw(); });
@@ -185,13 +214,15 @@ function orderCard(o) {
         ${gst === 'new' ? `<button class="btn s w" data-ss="preparing" data-oid="${o.id}">‍ ${esc(A('بلّش التحضير', 'Zubereitung starten'))}</button>` : ''}
         ${gst !== 'ready' ? `<button class="btn s g" data-ss="ready" data-oid="${o.id}">${esc(A('جاهز', 'Fertig'))}</button>` : `<button class="btn s o" data-ss="preparing" data-oid="${o.id}">${esc(A('رجوع', 'Zurück'))}</button>`}</div>` : ''}</div>`; }).join('')}
    <div class="sum" style="margin-top:6px"><span>${esc(A('المجموع', 'Summe'))} • ${esc(A(PAY[o.payment] ? PAY[o.payment][0] : o.payment, PAY[o.payment] ? PAY[o.payment][1] : o.payment))}${o.paid ? ' ✓' : ''}</span><b>${money(o.total)}</b></div>
+   ${o.payment === 'stripe' ? `<div class="acts" style="margin-top:4px"><span class="pill ${o.paid ? 'ok' : 'bad'}">${o.paid ? esc(A('مدفوع بالبطاقة أونلاين', 'Online bezahlt')) : esc(A('البطاقة أونلاين: لسا مش مدفوع', 'Karte online: noch nicht bezahlt'))}</span></div>` : ''}
    ${o.payment === 'transfer' ? `<div class="acts" style="margin-top:4px"><span class="pill ${o.paid ? 'ok' : 'warn'}">${o.paid ? esc(A('التحويل وصل', 'Überweisung erhalten')) : esc(A('التحويل لسا ما وصل', 'Überweisung offen'))}</span><button class="btn s o" data-paid="${o.id}" data-v="${o.paid ? 0 : 1}">${o.paid ? esc(A('رجّعها غير مدفوعة', 'Als offen markieren')) : esc(A('وصل المبلغ', 'Als bezahlt markieren'))}</button></div>` : ''}
-   ${o.mode === 'delivery' ? `<div class="note">${esc(A('السائق:', 'Fahrer:'))} ${drv ? esc(drv.name || drv.username) : o.driver_id ? '✓' : '—'}${o.cash_collected ? ' •  ' + esc(A('تم تحصيل الكاش', 'Bar kassiert')) : ''}</div>` : ''}
+   ${o.mode === 'delivery' ? `<div class="note">${esc(A('السائق:', 'Fahrer:'))} ${drv ? esc(drv.name || drv.username) : o.driver_id ? '✓' : '—'}${o.cash_collected ? ' •  ' + esc(A('تم تحصيل الكاش', 'Bar kassiert')) : ''}${safeUrl(o.proof_url) ? ` • <a href="${esc(safeUrl(o.proof_url))}" target="_blank" rel="noopener">${esc(A('صورة التسليم', 'Übergabe-Foto'))}</a>` : ''}</div>` : ''}
    <div class="acts noprint" style="margin-top:8px">
     ${o.mode === 'pickup' && o.status === 'ready' ? `<button class="btn s g" data-os="picked_up" data-oid="${o.id}">${esc(A('تم التسليم للزبون', 'An Kunde übergeben'))}</button>` : ''}
     ${admin && o.mode === 'delivery' && ['new', 'preparing', 'ready'].includes(o.status) ? `<select data-drv="${o.id}" style="width:auto;padding:6px 10px"><option value="">${esc(A('اختار سائق', 'Fahrer wählen'))}</option>${ST.drivers.map(d => `<option value="${d.user_id}" ${d.user_id === o.driver_id ? 'selected' : ''}>${esc(d.name || d.username)}</option>`).join('')}</select>` : ''}
     ${admin && o.mode === 'delivery' && o.status === 'on_way' ? `<button class="btn s g" data-os="delivered" data-oid="${o.id}">${esc(A('تم التوصيل', 'Geliefert'))}</button>` : ''}
-    <button class="btn s o" data-pr="${o.id}">${ic('receipt', 's')}</button>
+    <button class="btn s o" data-pr="${o.id}" aria-label="${esc(A('فاتورة', 'Rechnung'))}">${ic('receipt', 's')}</button>
+    <button class="btn s o" data-bon="${o.id}">${ic('print', 's')} Bon</button>
     ${wa ? `<a class="btn s o" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${encodeURIComponent(waText(o))}">${ic('chat', 's')}</a>` : ''}
     ${admin && !['delivered', 'picked_up', 'cancelled'].includes(o.status) ? `<button class="btn s r" data-os="cancelled" data-oid="${o.id}">${esc(A('إلغاء', 'Stornieren'))}</button>` : ''}
    </div></div>`;
@@ -215,26 +246,41 @@ function codeDialog(o, done) {
     <h3>${esc(del ? A('تسليم الطلب', 'Übergabe') : A('تسليم للزبون', 'An Kunde übergeben'))} #${+o.id}</h3>
     <p class="note">${esc(A('اطلب من الزبون كود التسليم (4 أرقام). بيلاقيه بصفحة الطلب أو بالإيميل.', 'Lass dir vom Kunden den 4-stelligen Übergabe-Code nennen. Er steht auf seiner Bestellseite und in der E-Mail.'))}</p>
     <input type="text" id="hcCode" class="codein" inputmode="numeric" autocomplete="one-time-code" maxlength="4" pattern="[0-9]*" placeholder="• • • •" aria-label="Code">
+    ${del ? `<label class="proofpick"><input type="file" accept="image/*" capture="environment" id="hcPhoto" hidden><span id="hcPhotoL">${ic('camera', 's')} ${esc(A('صورة التسليم (اختياري)', 'Foto der Übergabe (optional)'))}</span></label>` : ''}
     ${cashQ ? `<label class="chk" style="margin-top:12px"><input type="checkbox" id="hcCash"><span>${esc(A('حصّلت', 'Kassiert:'))} <b>${money(o.total)}</b> ${esc(A('كاش', 'bar'))}</span></label>` : ''}
     <button class="btn g full" id="hcGo" style="margin-top:14px">${esc(A('تأكيد التسليم', 'Übergabe bestätigen'))}</button>
     ${admin ? `<button class="lnk" id="hcOver" style="display:block;margin:12px auto 0">${esc(A('بدون كود (بس للأدمن)', 'Ohne Code (nur Admin)'))}</button>` : ''}`);
   const inp = $('#hcCode', m); setTimeout(() => inp.focus(), 60);
   inp.oninput = () => { inp.value = inp.value.replace(/\D/g, '').slice(0, 4); };
   const cash = () => cashQ ? $('#hcCash', m).checked : null;
+  let photo = null;
+  if ($('#hcPhoto', m)) $('#hcPhoto', m).onchange = e => { photo = e.target.files[0] || null; $('#hcPhotoL', m).innerHTML = photo ? `${ic('check', 's')} ${esc(A('الصورة جاهزة', 'Foto bereit'))}` : ''; };
+  const upProof = async () => {
+    if (!photo) return;
+    try {
+      const blob = await compressImage(photo, 1200);
+      const path = `${o.id}/${App.uid()}${App.uid()}.jpg`;
+      const { error } = await sb.storage.from('proofs').upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+      if (error) throw error;
+      const url = sb.storage.from('proofs').getPublicUrl(path).data.publicUrl;
+      const r = await sb.rpc('driver_proof', { p_order: o.id, p_url: url }); if (r.error) throw r.error;
+    } catch (e) { toast(A('الصورة ما انرفعت، بس الطلب انسكّر.', 'Foto nicht hochgeladen, Bestellung ist trotzdem abgeschlossen.'), 1); }
+  };
   const go = async () => {
     if (!/^\d{4}$/.test(inp.value)) { inp.classList.add('bad'); return toast(A('اكتب الكود (4 أرقام).', 'Bitte den 4-stelligen Code eingeben.'), 1); }
     if (cashQ && !cash() && !confirm(A('ما حصّلت الكاش؟ رح ينحفظ إنو لسا ما انحصّل.', 'Bargeld nicht kassiert? Wird als offen gespeichert.'))) return;
     const b = $('#hcGo', m); b.disabled = true;
     const { error } = await sb.rpc('order_complete', { p_order: o.id, p_code: inp.value, p_cash: cash() });
     b.disabled = false;
-    if (error) { inp.classList.add('bad'); inp.select(); return codeErr(error); }
+    if (error) { b.disabled = false; inp.classList.add('bad'); inp.select(); return codeErr(error); }
+    await upProof();
     closeModal(); toast('✓ #' + o.id); done && done();
   };
   $('#hcGo', m).onclick = go; inp.onkeydown = e => { if (e.key === 'Enter') go(); };
   if ($('#hcOver', m)) $('#hcOver', m).onclick = async () => {
     if (!confirm(A('أكيد بدك تسكّر الطلب بدون كود؟', 'Bestellung wirklich ohne Code abschließen?'))) return;
     const { error } = await sb.rpc('order_set_status', { p_order: o.id, p_status: del ? 'delivered' : 'picked_up', p_cash: cash() });
-    if (error) return err(error); closeModal(); toast('✓ #' + o.id); done && done();
+    if (error) return err(error); await upProof(); closeModal(); toast('✓ #' + o.id); done && done();
   };
 }
 function bindOrderCards(root, refresh) {
@@ -250,7 +296,71 @@ function bindOrderCards(root, refresh) {
   $$('[data-w]', root).forEach(b => b.onclick = () => { const v = parseFloat(String($(`[data-wq="${b.dataset.w}"]`, root).value).replace(',', '.')); if (!(v > 0)) return; run(sb.rpc('set_final_qty', { p_item: +b.dataset.w, p_qty: v })).then(() => toast(' ✓')); });
   $$('[data-drv]', root).forEach(s => s.onchange = () => run(sb.rpc('admin_assign_driver', { p_order: +s.dataset.drv, p_driver: s.value || null })));
   $$('[data-pr]', root).forEach(b => b.onclick = () => printOrder(ST.orders.find(x => x.id === +b.dataset.pr)));
+  $$('[data-bon]', root).forEach(b => b.onclick = () => { const o = ST.orders.find(x => x.id === +b.dataset.bon); if (o) printBon(o); });
   $$('[data-paid]', root).forEach(b => b.onclick = () => run(sb.rpc('order_set_paid', { p_order: +b.dataset.paid, p_paid: b.dataset.v === '1' })));
+}
+/* ---------- push notifications (works with the page closed) ---------- */
+const b64u = s => { const p = '='.repeat((4 - s.length % 4) % 4); const r = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from([...r].map(c => c.charCodeAt(0))); };
+const pushOk = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+async function pushState() {
+  if (!pushOk()) return 'no';
+  if (Notification.permission === 'denied') return 'denied';
+  const reg = await navigator.serviceWorker.getRegistration(); const sub = reg && await reg.pushManager.getSubscription();
+  return sub ? 'on' : 'off';
+}
+async function pushToggle(btn) {
+  if (!pushOk()) {
+    const ios = /iPhone|iPad/.test(navigator.userAgent);
+    return toast(ios ? A('على الآيفون: افتح الموقع بـ Safari، اكبس «مشاركة» ← «إلى الشاشة الرئيسية»، وافتحو من هونيك، وبعدين فعّل الإشعارات.', 'iPhone: Seite in Safari öffnen, „Teilen“ → „Zum Home-Bildschirm“, von dort öffnen und dann Mitteilungen aktivieren.') : A('هالمتصفح ما بيدعم الإشعارات.', 'Dieser Browser unterstützt keine Mitteilungen.'), 1);
+  }
+  const reg = await navigator.serviceWorker.register('sw.js'); await navigator.serviceWorker.ready;
+  const cur = await reg.pushManager.getSubscription();
+  if (cur) { await sb.rpc('push_unsubscribe', { p_endpoint: cur.endpoint }); await cur.unsubscribe(); toast(A('الإشعارات انطفت على هالجهاز.', 'Mitteilungen auf diesem Gerät aus.')); }
+  else {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') return toast(A('لازم تسمح بالإشعارات من إعدادات المتصفح.', 'Bitte Mitteilungen in den Browser-Einstellungen erlauben.'), 1);
+    let key = (await sb.rpc('vapid_public')).data;
+    if (!key) { try { const r = await fetch(App.CFG.url + '/functions/v1/staff-push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"init":true}' }); key = (await r.json()).key; } catch (_) {} }
+    if (!key) return toast(A('ما زبط، جرّب كمان شوي.', 'Hat nicht geklappt, bitte gleich nochmal versuchen.'), 1);
+    try {
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(key) });
+      const j = sub.toJSON();
+      const { error } = await sb.rpc('push_subscribe', { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth });
+      if (error) { await sub.unsubscribe(); return err(error); }
+      toast(A('تمام! رح توصلك إشعارات حتى لو الصفحة مسكّرة.', 'Fertig! Du bekommst Mitteilungen, auch wenn die Seite zu ist.'));
+    } catch (e) { return toast(A('ما زبط تفعيل الإشعارات.', 'Mitteilungen konnten nicht aktiviert werden.'), 1); }
+  }
+  if (btn) paintPush(btn);
+}
+async function paintPush(btn) {
+  const st = await pushState();
+  btn.classList.toggle('g', st === 'on'); btn.classList.toggle('o', st !== 'on');
+  btn.innerHTML = `${ic(st === 'on' ? 'bell' : 'belloff', 's')} ${esc(st === 'on' ? A('الإشعارات شغالة', 'Mitteilungen an') : A('فعّل الإشعارات', 'Mitteilungen aktivieren'))}`;
+}
+/* ---------- kitchen / shop slip (Bon) ---------- */
+const autoPrintOn = () => localStorage.getItem('so_autoprint') === '1' && S.staff && S.staff.role !== 'driver';
+const bonQ = [];
+function queueBon(o) { bonQ.push(o); if (bonQ.length === 1) runBon(); }
+function runBon() { const o = bonQ[0]; if (!o) return; printBon(o, () => { bonQ.shift(); setTimeout(runBon, 400); }); }
+function bonHtml(o) {
+  const mine = S.staff.role === 'shop' ? S.staff.shop_id : null;
+  const items = o.order_items.filter(i => i.status !== 'rejected' && (!mine || i.shop_id === mine));
+  const by = {}; items.forEach(i => (by[i.shop_id] = by[i.shop_id] || []).push(i));
+  const d = new Date(o.created_at);
+  return `<div class="bon"><div class="bon-no">#${+o.id}</div>
+    <div class="bon-m">${o.mode === 'delivery' ? 'LIEFERUNG · توصيل' : 'ABHOLUNG · استلام'}</div>
+    <div class="bon-t">${d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' })}${o.scheduled_at ? '<br><b>Termin: ' + new Date(o.scheduled_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }) + '</b>' : ''}</div>
+    ${Object.keys(by).map(sid => `<div class="bon-s">${esc((App.shopById(sid) || {}).name_de || sid)}</div>` + by[sid].map(i => `<div class="bon-i"><b>${esc(fq(i.final_qty || i.qty, i.unit))}</b><span>${esc(i.name_de)}<small dir="rtl">${esc(i.name_ar)}</small>${(i.options || []).length ? `<small>${esc(i.options.map(x => x.de || x.ar).join(', '))}</small>` : ''}${i.note ? `<small>» ${esc(i.note)}</small>` : ''}${i.cake ? `<small>Torte ${esc(i.cake.date)} ${esc(i.cake.text || '')}</small>` : ''}</span></div>`).join('')).join('')}
+    ${o.note ? `<div class="bon-n">${esc(o.note)}</div>` : ''}
+    <div class="bon-c">${esc(o.customer_name)} · ${esc(o.phone || '')}</div></div>`;
+}
+function printBon(o, done) {
+  let area = $('#bonArea'); if (!area) { area = document.createElement('div'); area.id = 'bonArea'; document.body.appendChild(area); }
+  area.innerHTML = bonHtml(o);
+  document.body.classList.add('bonprint');
+  let fin = false; const end = () => { if (fin) return; fin = true; document.body.classList.remove('bonprint'); area.innerHTML = ''; window.removeEventListener('afterprint', end); done && done(); };
+  window.addEventListener('afterprint', end);
+  setTimeout(() => { try { window.print(); } catch (_) {} setTimeout(end, 1500); }, 60);
 }
 function printOrder(o) {
   const asView = Object.assign({}, o, { items: o.order_items.map(i => Object.assign({}, i, { line_total: i.final_total != null ? i.final_total : i.line_total })) });
@@ -809,6 +919,14 @@ function secSettings(main) {
      <label class="chk"><input type="checkbox" id="pCa" ${s.payments.cash !== false ? 'checked' : ''}><span>${esc(A('كاش', 'Bar'))}</span></label><label class="chk"><input type="checkbox" id="pCd" ${s.payments.card ? 'checked' : ''}><span>${esc(A('بطاقة EC عند الاستلام', 'EC-Karte bei Übergabe'))}</span></label>
      <label class="chk"><input type="checkbox" id="pPp" ${s.payments.paypal ? 'checked' : ''}><span>PayPal (PayPal.me)</span></label>
      <label class="f"><span>${esc(A('اسم PayPal.me (مثلاً steinolive)', 'PayPal.me-Name (z. B. steinolive)'))}</span><input type="text" id="pPm" value="${esc(s.payments.paypal_me || '')}"></label></div>
+    <div class="card"><h3>${esc(A('الدفع بالبطاقة أونلاين (Stripe)', 'Online-Kartenzahlung (Stripe)'))}</h3>
+     <p class="note">${esc(A('الزبون بيدفع بالبطاقة أو Apple Pay أو Google Pay، والمصاري بتنزل بحساب Stripe تبع صاحب المحل، ومنو لحسابو البنكي (Sparkasse). Stripe بياخد عمولة صغيرة على كل دفعة.', 'Kunden zahlen mit Karte, Apple Pay oder Google Pay. Das Geld geht auf das Stripe-Konto des Inhabers und von dort auf sein Bankkonto (z. B. Sparkasse). Stripe berechnet pro Zahlung eine kleine Gebühr.'))}</p>
+     <div id="stState" class="note">…</div>
+     <label class="chk"><input type="checkbox" id="pSt" ${s.payments.stripe ? 'checked' : ''}><span>${esc(A('اعرض الدفع بالبطاقة أونلاين للزباين', 'Online-Kartenzahlung anbieten'))}</span></label>
+     <label class="f"><span>${esc(A('المفتاح السري (Secret key، بيبلّش بـ sk_live_ أو rk_live_)', 'Geheimer Schlüssel (Secret key, beginnt mit sk_live_ oder rk_live_)'))}</span><input type="password" id="stSk" autocomplete="off" spellcheck="false" maxlength="210" placeholder="sk_live_…"></label>
+     <label class="f"><span>${esc(A('مفتاح الـ Webhook (Signing secret، بيبلّش بـ whsec_)', 'Webhook-Schlüssel (Signing secret, beginnt mit whsec_)'))}</span><input type="password" id="stWh" autocomplete="off" spellcheck="false" maxlength="210" placeholder="whsec_…"></label>
+     <div class="acts"><button class="btn s" id="stSave">${esc(A('حفظ مفاتيح Stripe', 'Stripe-Schlüssel speichern'))}</button><button class="btn s r" id="stDel" hidden>${esc(A('فصل Stripe', 'Stripe trennen'))}</button></div>
+     <p class="note" style="margin-top:10px">${esc(A('رابط الـ Webhook اللي لازم ينحط بـ Stripe (الحدث: checkout.session.completed):', 'Webhook-Adresse für Stripe (Ereignis: checkout.session.completed):'))}<br><code dir="ltr" style="word-break:break-all">${esc(App.CFG.url)}/functions/v1/stripe/webhook</code></p></div>
     <div class="card"><h3>${esc(A('الحساب البنكي (للتحويل)', 'Bankverbindung (für Überweisung)'))}</h3>
      <label class="chk"><input type="checkbox" id="pTr" ${s.payments.transfer ? 'checked' : ''}><span>${esc(A('السماح بالدفع بالتحويل البنكي', 'Zahlung per Überweisung anbieten'))}</span></label>
      <p class="note">${esc(A('الزبون بيشوف هالمعلومات مع كود QR بيفتح تطبيق البنك (Sparkasse وغيره) والتحويل معبّى. المصاري بتروح مباشرة عحساب صاحب المحل.', 'Der Kunde sieht diese Daten mit einem QR-Code (GiroCode) für seine Banking-App. Das Geld geht direkt auf das Konto des Inhabers.'))}</p>
@@ -828,13 +946,19 @@ function secSettings(main) {
      <div class="row"><label class="f"><span>${esc(A('إيميل تجربة', 'Test-E-Mail an'))}</span><input type="email" id="rsTo" maxlength="120" value="${esc(s.email || '')}"></label></div>
      <button class="btn s o" id="rsTest">${esc(A('ابعت إيميل تجربة', 'Test-E-Mail senden'))}</button>
      <div id="mailLog" class="note" style="margin-top:12px">…</div></div>
+    <div class="card"><h3>${esc(A('الأوقات والتقرير اليومي', 'Zeiten & Tagesbericht'))}</h3>
+     <div class="row">${f('prep_min', A('مدة التحضير (دقايق)', 'Zubereitung (Minuten)'), 'number')}${f('drive_min', A('مدة التوصيل (دقايق)', 'Lieferfahrt (Minuten)'), 'number')}</div>
+     <p class="note">${esc(A('منها بنحسب الوقت المتوقع اللي بيشوفو الزبون.', 'Daraus berechnen wir die Zeit, die der Kunde sieht.'))}</p>
+     ${f('report_email', A('إيميل التقرير اليومي (مثلاً إيميل صاحب المحل)', 'E-Mail für den Tagesbericht (z. B. Inhaber)'), 'email')}
+     <p class="note">${esc(A('كل يوم الساعة 23:00 بيوصل إيميل فيه: المبيعات لكل محل، أكتر شي انباع، والمنتجات اللي قربت تخلص. اتركها فاضية إذا ما بدك.', 'Jeden Tag um 23:00 Uhr kommt eine E-Mail mit Umsatz pro Geschäft, Bestsellern und knappen Produkten. Leer lassen = kein Bericht.'))}</p>
+     <button class="btn s o" id="repTest">${esc(A('ابعت تقرير اليوم هلق', 'Heutigen Bericht jetzt senden'))}</button></div>
     <div class="card"><h3>${esc(A('إعلان بالصفحة الرئيسية', 'Hinweis auf Startseite'))}</h3>${f('announce_ar', 'بالعربي')}${f('announce_de', 'Deutsch')}
      <label class="f"><span>${esc(A('تنبيه الصلاحية قبل (أيام)', 'MHD-Warnung (Tage vorher)'))}</span><input type="number" id="sEx" value="${esc(s.expiry_warn_days || 3)}"></label></div>
     <button class="btn full" id="setSave">${esc(A('حفظ الإعدادات', 'Einstellungen speichern'))}</button>`;
   const dz = () => { $('#zones').innerHTML = s.zones.map((z, i) => `<div class="card" style="padding:8px"><input type="text" data-zp="${i}" value="${esc(z.plz)}" placeholder="20099, 20097"><div class="row" style="margin-top:6px"><label class="f" style="margin:0"><span>${esc(A('سعر التوصيل €', 'Gebühr €'))}</span><input type="number" step="0.1" data-zf="${i}" value="${esc(z.fee)}"></label><label class="f" style="margin:0"><span>${esc(A('الحد الأدنى €', 'Mindestwert €'))}</span><input type="number" step="0.5" data-zm="${i}" value="${esc(z.min)}"></label></div><button class="btn s r" data-zx="${i}" style="margin-top:6px">✕</button></div>`).join('');
     $$('[data-zx]').forEach(b => b.onclick = () => { readZ(); s.zones.splice(+b.dataset.zx, 1); dz(); }); };
   const readZ = () => { s.zones = s.zones.map((z, i) => ({ plz: $(`[data-zp="${i}"]`).value.replace(/\s/g, ''), fee: parseFloat($(`[data-zf="${i}"]`).value) || 0, min: parseFloat($(`[data-zm="${i}"]`).value) || 0 })); };
-  const EVN = { test: A('تجربة', 'Test'), reset: A('كلمة سر جديدة', 'Passwort'), created: A('طلب جديد', 'Eingang'), preparing: A('تحضير', 'Zubereitung'), ready: A('جاهز', 'Fertig'), on_way: A('بالطريق', 'Unterwegs'), delivered: A('توصيل', 'Geliefert'), picked_up: A('استلام', 'Abgeholt'), cancelled: A('إلغاء', 'Storniert'), paid: A('دفع', 'Bezahlt') };
+  const EVN = { report: A('تقرير يومي', 'Tagesbericht'), test: A('تجربة', 'Test'), reset: A('كلمة سر جديدة', 'Passwort'), created: A('طلب جديد', 'Eingang'), preparing: A('تحضير', 'Zubereitung'), ready: A('جاهز', 'Fertig'), on_way: A('بالطريق', 'Unterwegs'), delivered: A('توصيل', 'Geliefert'), picked_up: A('استلام', 'Abgeholt'), cancelled: A('إلغاء', 'Storniert'), paid: A('دفع', 'Bezahlt') };
   const mailLog = () => sb.from('mail_queue').select('event,created_at,sent_at,error,order_id').order('created_at', { ascending: false }).limit(8).then(({ data }) => {
     const el = $('#mailLog'); if (!el) return;
     el.innerHTML = (data || []).length ? data.map(m => `<div class="sum"><span>${m.order_id ? '#' + (+m.order_id) + ' · ' : ''}${esc(EVN[m.event] || m.event)} · ${fmtDate(m.created_at)}</span><span>${m.sent_at ? '<span class="pill ok">' + esc(A('انبعت', 'Gesendet')) + '</span>' : '<span class="pill bad">' + esc((m.error || A('بالانتظار', 'Wartet')).slice(0, 40)) + '</span>'}</span></div>`).join('')
@@ -847,6 +971,34 @@ function secSettings(main) {
     $('#rsDel').hidden = !(data && data.set);
   };
   mailLog(); rsState();
+  const stState = async () => {
+    const { data } = await sb.rpc('admin_secret_status'); const el = $('#stState'); if (!el) return;
+    const ok = data && data.stripe && data.stripe_whsec;
+    el.innerHTML = ok ? `<span class="pill ok">${esc(A('Stripe موصول', 'Stripe verbunden'))}</span> <span dir="ltr">${esc(data.stripe.hint)}</span>${/_test_/.test(data.stripe.hint) ? ` <span class="pill warn">${esc(A('وضع التجربة', 'Testmodus'))}</span>` : ''}`
+      : `<div class="warnbox">${esc(A('Stripe لسا مش موصول. الزباين ما رح يشوفو الدفع بالبطاقة.', 'Stripe noch nicht verbunden. Kunden sehen die Kartenzahlung noch nicht.'))}</div>`;
+    $('#stDel').hidden = !(data && (data.stripe || data.stripe_whsec));
+  };
+  stState();
+  $('#stSave').onclick = async () => {
+    const sk = $('#stSk').value.trim(), wh = $('#stWh').value.trim();
+    if (!sk && !wh) return toast(A('حط مفتاح واحد على الأقل.', 'Mindestens einen Schlüssel eintragen.'), 1);
+    if (sk && !/^(sk|rk)_(live|test)_[A-Za-z0-9]{10,200}$/.test(sk)) return toast(A('المفتاح السري لازم يبلّش بـ sk_live_ أو rk_live_.', 'Der geheime Schlüssel muss mit sk_live_ oder rk_live_ beginnen.'), 1);
+    if (wh && !/^whsec_[A-Za-z0-9]{10,200}$/.test(wh)) return toast(A('مفتاح الـ Webhook لازم يبلّش بـ whsec_.', 'Der Webhook-Schlüssel muss mit whsec_ beginnen.'), 1);
+    for (const [n, v] of [['stripe', sk], ['stripe_whsec', wh]]) { if (!v) continue; const { error } = await sb.rpc('admin_set_secret', { p_name: n, p_value: v }); if (error) return err(error); }
+    $('#stSk').value = ''; $('#stWh').value = ''; toast(A('انحفظ', 'Gespeichert')); stState();
+  };
+  $('#stDel').onclick = async () => {
+    if (!confirm(A('أكيد بدك تفصل Stripe؟', 'Stripe wirklich trennen?'))) return;
+    for (const n of ['stripe', 'stripe_whsec']) await sb.rpc('admin_set_secret', { p_name: n, p_value: '' });
+    toast(A('انفصل', 'Getrennt')); stState();
+  };
+  $('#repTest').onclick = async () => {
+    const v = ($('[data-k="report_email"]').value || '').trim();
+    if ((s.report_email || '') !== v) return toast(A('احفظ الإعدادات أول شي (الزر تحت)، وبعدين جرّب.', 'Bitte zuerst die Einstellungen speichern (Button unten).'), 1);
+    if (!v) return toast(A('اكتب إيميل التقرير أول شي.', 'Bitte zuerst die Bericht-E-Mail eintragen.'), 1);
+    const { error } = await sb.rpc('admin_report_now'); if (error) return err(error);
+    toast(A('انبعت التقرير. شوف الإيميل بعد دقيقة.', 'Bericht gesendet. In einer Minute ins Postfach schauen.')); setTimeout(mailLog, 4000);
+  };
   $('#rsSave').onclick = async () => {
     const k = $('#rsKey').value.trim();
     if (!/^re_[A-Za-z0-9_]{10,200}$/.test(k)) return toast(A('المفتاح لازم يبلّش بـ re_. انسخو كامل من Resend.', 'Der Schlüssel muss mit re_ beginnen. Bitte komplett aus Resend kopieren.'), 1);
@@ -872,7 +1024,7 @@ function secSettings(main) {
   $('#setSave').onclick = async () => {
     readZ(); $$('[data-k]').forEach(i => s[i.dataset.k] = i.value.trim());
     s.pickup = $('#sPk').checked; s.delivery = $('#sDl').checked; s.expiry_warn_days = +$('#sEx').value || 3;
-    s.payments = { cash: $('#pCa').checked, card: $('#pCd').checked, transfer: $('#pTr').checked, paypal: $('#pPp').checked, paypal_me: $('#pPm').value.trim() };
+    s.payments = { cash: $('#pCa').checked, card: $('#pCd').checked, transfer: $('#pTr').checked, paypal: $('#pPp').checked, paypal_me: $('#pPm').value.trim(), stripe: $('#pSt').checked };
     s.kleinunternehmer = $('#sKu').checked; s.delivery_vat = +$('#sDv').value;
     if (s.bank_iban) s.bank_iban = s.bank_iban.replace(/\s/g, '').toUpperCase();
     if (s.payments.transfer && !/^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(s.bank_iban || '')) return toast(A('الـ IBAN مش صحيح', 'IBAN ungültig'), 1);
@@ -933,8 +1085,10 @@ async function vDriver() {
   $('#app').innerHTML = `<header class="top"><div class="in"><img class="logo" src="logo.png" alt=""><b>${esc(S.staff.name || S.staff.username)}</b><div class="sp"></div>
      <span class="note" style="display:none" id="liveDot">●</span><button class="ib" id="dsnd">${ic(ST.sound ? 'bell' : 'belloff')}</button><button class="ib" id="dl">${esc(App.t('lang'))}</button><button class="ib" id="dlo" aria-label="Abmelden">${ic('logout')}</button></div></header>
     <main class="wrap"><div class="tabs" id="dtabs">${[['avail', 'متاحة', 'Verfügbar'], ['mine', 'طلباتي', 'Meine'], ['done', 'خلصت اليوم', 'Heute erledigt']].map(x => `<button data-t="${x[0]}" class="${tab === x[0] ? 'on' : ''}">${esc(A(x[1], x[2]))} <span id="dc_${x[0]}"></span></button>`).join('')}</div>
+    <div class="acts" style="margin-bottom:8px"><button class="btn s o" id="pushD">${ic('belloff', 's')}</button></div>
     <div id="geoInfo"></div><div id="dlist"><div class="empty">…</div></div></main>`;
   $('#dl').onclick = () => { App.setLang(S.lang === 'ar' ? 'de' : 'ar'); vDriver(); };
+  paintPush($('#pushD')); $('#pushD').onclick = () => pushToggle($('#pushD'));
   $('#dlo').onclick = logout;
   $('#dsnd').onclick = () => { ST.sound = !ST.sound; localStorage.setItem('so_sound', ST.sound ? '1' : '0'); if (ST.sound) beep(); $('#dsnd').innerHTML = ic(ST.sound ? 'bell' : 'belloff'); };
   $$('#dtabs button').forEach(b => b.onclick = () => { tab = ST.dtab = b.dataset.t; $$('#dtabs button').forEach(x => x.classList.toggle('on', x === b)); draw(); });
@@ -982,8 +1136,8 @@ const SECS = { customers: secCustomers, orders: secOrders, products: secProducts
 async function route(r, sec) {
   stopCamera();
   const st = await session();
-  if (r === 'login') { if (st) { location.hash = st.role === 'driver' ? '#/driver' : '#/admin/orders'; return; } return vLogin(); }
-  if (!st) { location.hash = '#/login'; return; }
+  if (r === 'login' || r === 'team') { if (st) { location.hash = st.role === 'driver' ? '#/driver' : '#/admin/orders'; return; } return vLogin(); }
+  if (!st) { location.hash = '#/team'; return; }
   if (r === 'driver' || st.role === 'driver') { if (r !== 'driver' && sec !== 'account') { location.hash = '#/driver'; return; } if (r === 'driver') return vDriver(); }
   stopLive();
   sec = SECS[sec] && MENU.find(m => m[0] === sec && m[4].includes(st.role)) ? sec : 'orders';
