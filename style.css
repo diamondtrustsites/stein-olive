@@ -567,3 +567,8 @@ html,body{overflow-x:clip}
 .hx{margin-inline:calc(50% - 50vw)!important;padding-inline:max(20px,calc(50vw - 574px))}
 .hx-in{max-width:none}
 @media(min-width:960px){.hx-art{inset-inline-end:max(40px,calc(50vw - 574px))}}
+/* fix: first arch / rail item snapped to the screen edge; section titles on one line */
+.arches,.rail{scroll-padding-inline:16px}
+.hm-h h2{white-space:nowrap}
+.hm-h small{text-align:end;min-width:0;flex:0 1 auto;line-height:1.35}
+@media(max-width:420px){.hm-psg .hm-h{flex-direction:column;align-items:flex-start;gap:2px}.hm-psg .hm-h small{text-align:start}}
