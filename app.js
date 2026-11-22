@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 const CFG = window.SO_CONFIG;
-const sb = window.supabase.createClient(CFG.url, CFG.key, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'so-staff-auth' } });
+const sb = window.supabase.createClient(CFG.url, CFG.key, { auth: { persistSession: true, autoRefreshToken: true, storageKey: document.documentElement.getAttribute('data-app') === 'fahrer' ? 'so-driver-auth' : 'so-staff-auth' } });
 // customer-only calls always go out anonymously, even when staff is logged in on the same device
 let sbAnon = null;
 const anon = () => sbAnon || (sbAnon = window.supabase.createClient(CFG.url, CFG.key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'so-anon' } }));
@@ -723,7 +723,8 @@ async function liveMap(slot, o) {
       const r = await osrmRoute({ lat: drvPos[0], lng: drvPos[1] }, TM.dest);
       const pts = r ? r.pts : [drvPos, [TM.dest.lat, TM.dest.lng]];
       if (TM.line) TM.line.setLatLngs(pts); else TM.line = Lf.polyline(pts, { color: '#4F5B2E', weight: 6, opacity: .85, lineCap: 'round', dashArray: r ? null : '8 10' }).addTo(TM.map);
-      TM.eta = r ? { sec: r.sec, m: r.m, at: Date.now() } : null;
+      // OSRM kennt keinen Stadtverkehr, Ampeln oder Parkplatzsuche: realistisch für Hamburg sind ca. 17 km/h im Schnitt, plus 2 Min. zum Parken und Klingeln.
+      TM.eta = r ? { sec: Math.max(r.sec * 1.7, r.m / (17 / 3.6)) + 120, m: r.m, at: Date.now() } : null;
       TM.map.fitBounds(Lf.latLngBounds([drvPos, [TM.dest.lat, TM.dest.lng]]).pad(0.25), { maxZoom: 16 });
     }
   }
@@ -872,6 +873,67 @@ function invoiceHtml(o) {
      ${o.payment === 'transfer' && !o.paid && s.bank_iban ? `<br>${esc(s.bank_holder || s.name)} · IBAN ${esc(s.bank_iban)}${s.bank_bic ? ' · BIC ' + esc(s.bank_bic) : ''}<br>Verwendungszweck: SO-${+o.id}` : ''}</div>
      <div class="thanks"><div>Vielen Dank für deinen Einkauf.</div><div class="ar" dir="rtl">شكراً لأنك طلبت من بيت كرم</div></div></section>
   </article>`;
+}
+/* ---------- Thermodruck: Rechnung als Bon (80/58 mm) und Liefer-Etikett für die Tüte ---------- */
+const SLIP_PAY = { cash: ['Barzahlung', 'كاش'], card: ['EC-Karte', 'بطاقة EC'], paypal: ['PayPal', 'PayPal'], transfer: ['Überweisung', 'تحويل بنكي'], stripe: ['Karte online', 'بطاقة أونلاين'] };
+const slipEur = n => (Math.round((+n || 0) * 100) / 100).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const slipQty = (q, u) => u === 'kg' ? (+q).toLocaleString('de-DE', { maximumFractionDigits: 3 }) + ' kg' : (+q) + '×';
+const slipTime = (d, withDay) => new Date(d).toLocaleString('de-DE', Object.assign({ hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }, withDay ? { day: '2-digit', month: '2-digit', year: 'numeric' } : {}));
+function thermInvoiceHtml(o, logo) {
+  const s = S.settings; const ku = !!s.kleinunternehmer; const r2 = n => Math.round(n * 100) / 100;
+  const items = (o.items || []).filter(i => i.status !== 'rejected');
+  const byShop = {}; items.forEach(i => (byShop[i.shop_id] = byShop[i.shop_id] || []).push(i));
+  const gross = {}; const add = (v, amt) => { if (amt) gross[v] = (gross[v] || 0) + amt; };
+  items.forEach(i => add(+i.vat, +i.line_total)); add(19, +o.pfand || 0);
+  if (o.mode === 'delivery') add(+(s.delivery_vat || 7), +o.delivery_fee || 0);
+  const gsum = Object.values(gross).reduce((a, b) => a + b, 0);
+  if (+o.discount && gsum) Object.keys(gross).forEach(v => { gross[v] -= (+o.discount) * gross[v] / gsum; });
+  const row = (a, b, cls) => `<div class="sl-r${cls ? ' ' + cls : ''}"><span>${a}</span><b>${b}</b></div>`;
+  const pay = SLIP_PAY[o.payment] || [o.payment, o.payment];
+  return `<div class="slip">${logo ? '<img class="sl-logo" src="logo-dark.png" alt="">' : ''}
+    <div class="sl-h"><span>RECHNUNG</span><span dir="rtl">فاتورة</span></div>
+    ${row('Rechnungs-Nr.', 'SO-' + (+o.id))}${row('Datum', esc(slipTime(o.created_at, 1)))}${o.scheduled_at ? row('Leistung', esc(slipTime(o.scheduled_at, 1))) : ''}${row('Art', o.mode === 'delivery' ? 'Lieferung' : 'Abholung')}
+    <div class="sl-hr"></div>
+    <div class="sl-lb">Verkäufer</div><div class="sl-tx"><b>${esc(s.name || 'Stein & Olive by Karam')}</b>${s.owner ? '<br>Inh. ' + esc(s.owner) : ''}<br>${esc(s.address || '')}${s.phone ? '<br>Tel. ' + esc(s.phone) : ''}${s.vat_id ? '<br>USt-IdNr. ' + esc(s.vat_id) : ''}${s.tax_id ? '<br>St.-Nr. ' + esc(s.tax_id) : ''}</div>
+    <div class="sl-lb">Kunde</div><div class="sl-tx"><b>${esc(o.customer_name)}</b>${o.mode === 'delivery' ? '<br>' + esc(o.street) + '<br>' + esc(o.plz) + ' ' + esc(o.city) : ''}${o.phone ? '<br>Tel. ' + esc(o.phone) : ''}</div>
+    <div class="sl-hr"></div>
+    ${Object.keys(byShop).map(sid => `<div class="sl-shop">${esc((shopById(sid) || {}).name_de || sid)}</div>` + byShop[sid].map(i => {
+      const q = +(i.final_qty || i.qty); const opts = (i.options || []).map(x => x.de || x.ar).join(', ');
+      const unit = i.unit === 'kg' ? slipEur(i.unit_price) + '/kg' : slipEur(+i.line_total / (q || 1));
+      return `<div class="sl-it"><div class="sl-r"><span><b>${esc(slipQty(q, i.unit))}</b> ${esc(i.name_de)}</span><b>${slipEur(i.line_total)}</b></div>
+        <div class="sl-ar" dir="rtl">${esc(i.name_ar)}</div>${opts ? `<div class="sl-sm">${esc(opts)}</div>` : ''}${i.cake ? `<div class="sl-sm">Termin ${esc(i.cake.date)}${i.cake.text ? ' · „' + esc(i.cake.text) + '“' : ''}</div>` : ''}
+        ${q !== 1 || i.unit === 'kg' || !ku ? `<div class="sl-sm">${q !== 1 || i.unit === 'kg' ? esc(unit) : ''}${ku ? '' : `${q !== 1 || i.unit === 'kg' ? ' · ' : ''}MwSt ${+i.vat} %`}</div>` : ''}</div>`; }).join('')).join('')}
+    <div class="sl-hr"></div>
+    ${row('Zwischensumme', slipEur(o.subtotal))}${+o.pfand ? row('Pfand', slipEur(o.pfand)) : ''}${o.mode === 'delivery' ? row('Liefergebühr', slipEur(o.delivery_fee)) : ''}${+o.discount ? row('Rabatt ' + esc(o.coupon || ''), '−' + slipEur(o.discount)) : ''}
+    <div class="sl-r sl-tot"><span>Gesamt <span dir="rtl">المجموع</span></span><b>${slipEur(o.total)}</b></div>
+    ${ku ? '<div class="sl-sm">Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.</div>' : `<table class="sl-vat"><tr><th>MwSt</th><th>Netto</th><th>Steuer</th><th>Brutto</th></tr>${Object.keys(gross).sort().map(v => { const g = r2(gross[v]); const net = r2(g / (1 + v / 100)); return `<tr><td>${+v} %</td><td>${slipEur(net)}</td><td>${slipEur(r2(g - net))}</td><td>${slipEur(g)}</td></tr>`; }).join('')}</table>`}
+    <div class="sl-hr"></div>
+    ${row('Zahlung', esc(pay[0]))}${row('Status', o.paid ? 'bezahlt' : 'offen')}
+    ${o.payment === 'transfer' && !o.paid && s.bank_iban ? `<div class="sl-sm">IBAN ${esc(s.bank_iban)}<br>Verwendungszweck: SO-${+o.id}</div>` : ''}
+    <div class="sl-end">Vielen Dank für deinen Einkauf!<div dir="rtl">شكراً لأنك طلبت من بيت كرم</div></div></div>`;
+}
+function labelHtml(o) {
+  const s = S.settings; const deliv = o.mode === 'delivery';
+  const items = (o.items || o.order_items || []).filter(i => i.status !== 'rejected');
+  const byShop = {}; items.forEach(i => (byShop[i.shop_id] = byShop[i.shop_id] || []).push(i));
+  const cnt = items.reduce((n, i) => n + (i.unit === 'piece' ? +(i.final_qty || i.qty) : 1), 0);
+  const cooled = items.some(i => i.cooled);
+  const pay = SLIP_PAY[o.payment] || [o.payment, o.payment];
+  const collect = !o.paid && (o.payment === 'cash' || o.payment === 'card');
+  const nav = deliv ? 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(`${o.street}, ${o.plz} ${o.city}`) : '';
+  const phone = String(o.phone || '').replace(/^\+49\s?/, '0');
+  return `<div class="slip lbl">
+    <div class="lb-top"><div class="lb-no">#${+o.id}</div><div class="lb-mode">${deliv ? 'LIEFERUNG<span dir="rtl">توصيل</span>' : 'ABHOLUNG<span dir="rtl">استلام</span>'}</div></div>
+    <div class="lb-time">Bestellt ${esc(slipTime(o.created_at))}${o.scheduled_at ? ` · <b>Termin ${esc(slipTime(o.scheduled_at))}</b>` : ' · so schnell wie möglich'}</div>
+    <div class="lb-name">${esc(o.customer_name)}</div>
+    ${deliv ? `<div class="lb-addr">${esc(o.street)}<br>${esc(o.plz)} ${esc(o.city)}</div>${o.address_note ? `<div class="lb-box">${esc(o.address_note)}</div>` : ''}` : ''}
+    ${phone ? `<div class="lb-tel">Tel. ${esc(phone)}</div>` : ''}
+    <div class="lb-pay">${collect ? `<span>${o.payment === 'cash' ? 'BAR KASSIEREN' : 'EC-KARTE MITNEHMEN'}<small dir="rtl">${o.payment === 'cash' ? 'حصّل كاش' : 'خود جهاز البطاقة'}</small></span><b>${slipEur(o.total)}</b>` : o.paid ? `<span>BEZAHLT<small dir="rtl">مدفوع</small></span><b>${esc(pay[0])}</b>` : `<span>OFFEN<small dir="rtl">غير مدفوع</small></span><b>${slipEur(o.total)}</b>`}</div>
+    ${o.note ? `<div class="lb-box"><b>Notiz:</b> ${esc(o.note)}</div>` : ''}
+    <div class="lb-cnt">${Object.keys(byShop).map(sid => `<div class="sl-r"><span>${esc((shopById(sid) || {}).name_de || sid)}</span><b>${byShop[sid].reduce((n, i) => n + (i.unit === 'piece' ? +(i.final_qty || i.qty) : 1), 0)}</b></div>`).join('')}
+      <div class="sl-r sl-tot2"><span>Artikel gesamt</span><b>${cnt}</b></div>${cooled ? '<div class="lb-cool">❄ KÜHLWARE · مبرّد</div>' : ''}</div>
+    ${nav ? `<div class="lb-qr"><div class="qr">${qrSvg(nav)}</div><div>Navigation:<br>QR scannen<br><span dir="rtl">امسح للطريق</span></div></div>` : ''}
+    <div class="lb-ft">${esc(s.name || 'Stein & Olive by Karam')} · ${esc(s.address || '')}${s.phone ? ' · ' + esc(s.phone) : ''}</div></div>`;
 }
 async function vInvoice(token) {
   if (!/^[0-9a-f-]{36}$/i.test(token || '')) { location.hash = '#/'; return; }
@@ -1131,5 +1193,5 @@ async function start() {
 }
 
 window.App = { start, sb, S, CFG, t, L, LL, esc, money, fq, $, $$, toast, modal, closeModal, errMsg, loadData, fetchAll, shopById, prodById, page, setLang,
-  ALLERGENS, DAYS, fmtDate, qrSvg, receiptHtml, invoiceHtml, route, isOpenNow, uid, priceLabel, priceText, ic, shopIc, bgImg, safeUrl, clean, allow, waNum, DOMAIN: CFG.loginDomain };
+  ALLERGENS, DAYS, fmtDate, qrSvg, receiptHtml, invoiceHtml, thermInvoiceHtml, labelHtml, route, isOpenNow, uid, priceLabel, priceText, ic, shopIc, bgImg, safeUrl, clean, allow, waNum, DOMAIN: CFG.loginDomain };
 })();

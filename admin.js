@@ -53,7 +53,7 @@ async function vLogin() {
   document.body.classList.remove('tvmode');
   $('#app').innerHTML = `<main class="login-wrap"><div class="login-card">
     <img class="login-logo" src="logo-dark.png" alt="Stein & Olive">
-    <div class="login-hd"><h1>${esc(A('دخول الفريق', 'Team-Login'))}</h1><button class="ib" id="llang">${esc(App.t('lang'))}</button></div>
+    <div class="login-hd"><h1>${esc(appKind() === 'fahrer' ? A('دخول السائق', 'Fahrer-Login') : A('دخول الفريق', 'Team-Login'))}</h1><button class="ib" id="llang">${esc(App.t('lang'))}</button></div>
     <p class="note">${esc(A('اختار حسابك واكتب كلمة السر.', 'Konto wählen und Passwort eingeben.'))}</p>
     <div class="acc-pick" id="lacc" role="radiogroup" aria-label="Konto"><div class="note">…</div></div>
     <label class="f"><span>${esc(A('كلمة السر', 'Passwort'))}</span><input type="password" id="lp" autocomplete="current-password" maxlength="200"></label>
@@ -67,7 +67,9 @@ async function vLogin() {
   const label = a => a.r === 'admin' ? A('الإدارة', 'Verwaltung') : a.r === 'driver' ? (A('سائق', 'Fahrer') + (a.n && !/^fahrer$/i.test(a.n) ? ' · ' + a.n : '')) : (L(App.shopById(a.s) || {}, 'name') || a.n || a.u);
   const sub = a => a.r === 'admin' ? 'Admin' : a.r === 'driver' ? A('تطبيق السائق', 'Fahrer-App') : A('محل', 'Geschäft');
   const { data, error } = await sb.rpc('staff_logins');
-  const list = (!error && Array.isArray(data)) ? data : [];
+  const all = (!error && Array.isArray(data)) ? data : [];
+  // Fahrer-App: nur Fahrer-Konten. Team-App: Verwaltung und Geschäfte (Fahrer haben ihre eigene App).
+  const list = appKind() === 'fahrer' ? all.filter(a => a.r === 'driver') : appKind() === 'team' ? all.filter(a => a.r !== 'driver') : all;
   const box = $('#lacc'); if (!box) return;
   if (!list.length) { box.hidden = true; $('#luw').hidden = false; $('#lman').hidden = true; }
   else {
@@ -88,6 +90,7 @@ async function vLogin() {
     if (error) { $('#lp').classList.add('bad'); $('#lp').select(); return toast(A('كلمة السر غلط.', 'Passwort falsch.'), 1); }
     S.staff = null; const st = await session();
     if (!st) { await sb.auth.signOut(); return toast(A('الحساب غير مفعّل', 'Konto nicht freigeschaltet'), 1); }
+    if (appKind() === 'fahrer' && st.role !== 'driver') { await sb.auth.signOut(); S.staff = null; return toast(A('هاد تطبيق السواقين بس. الإدارة والمحلات من تطبيق الفريق.', 'Nur für Fahrer. Verwaltung und Geschäfte nutzen die Team-App.'), 1); }
     try { localStorage.setItem('so_last_staff', u.replace(DOMAIN, '')); } catch (_) {}
     location.hash = st.role === 'driver' ? '#/driver' : '#/admin/orders';
   };
@@ -253,6 +256,7 @@ function orderCard(o) {
     ${admin && o.mode === 'delivery' && o.status === 'on_way' ? `<button class="btn s g" data-os="delivered" data-oid="${o.id}">${esc(A('تم التوصيل', 'Geliefert'))}</button>` : ''}
     <button class="btn s o" data-pr="${o.id}" aria-label="${esc(A('فاتورة', 'Rechnung'))}">${ic('receipt', 's')}</button>
     <button class="btn s o" data-bon="${o.id}">${ic('print', 's')} Bon</button>
+    <button class="btn s o" data-lbl="${o.id}">${ic('print', 's')} ${esc(A('ملصق', 'Etikett'))}</button>
     ${wa ? `<a class="btn s o" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${encodeURIComponent(waText(o))}">${ic('chat', 's')}</a>` : ''}
     ${admin && !['delivered', 'picked_up', 'cancelled'].includes(o.status) ? `<button class="btn s r" data-os="cancelled" data-oid="${o.id}">${esc(A('إلغاء', 'Stornieren'))}</button>` : ''}
    </div></div>`;
@@ -327,6 +331,7 @@ function bindOrderCards(root, refresh) {
   $$('[data-drv]', root).forEach(s => s.onchange = () => run(sb.rpc('admin_assign_driver', { p_order: +s.dataset.drv, p_driver: s.value || null })));
   $$('[data-pr]', root).forEach(b => b.onclick = () => printOrder(ST.orders.find(x => x.id === +b.dataset.pr)));
   $$('[data-bon]', root).forEach(b => b.onclick = () => { const o = ST.orders.find(x => x.id === +b.dataset.bon); if (o) printBon(o); });
+  $$('[data-lbl]', root).forEach(b => b.onclick = () => { const o = ST.orders.find(x => x.id === +b.dataset.lbl); if (o) printLabel(o); });
   $$('[data-paid]', root).forEach(b => b.onclick = () => run(sb.rpc('order_set_paid', { p_order: +b.dataset.paid, p_paid: b.dataset.v === '1' })));
 }
 /* ---------- push notifications (works with the page closed) ---------- */
@@ -372,33 +377,54 @@ const autoPrintOn = () => localStorage.getItem('so_autoprint') === '1' && S.staf
 const bonW = () => { const v = localStorage.getItem('so_bon_w') || '80'; return v === 'a4' ? 'a4' : +v; };
 const bonCopies = () => Math.min(3, Math.max(1, +(localStorage.getItem('so_bon_copies') || 1)));
 const bonQ = [];
-function queueBon(o) { const was = bonQ.length; for (let i = 0; i < bonCopies(); i++) bonQ.push(o); if (!was) runBon(); }
-function runBon() { const o = bonQ[0]; if (!o) return; printBon(o, () => { bonQ.shift(); setTimeout(runBon, 400); }); }
+const autoLabelOn = () => localStorage.getItem('so_auto_lbl') === '1';
+function queueBon(o) {
+  const was = bonQ.length;
+  for (let i = 0; i < bonCopies(); i++) bonQ.push({ o, k: 'bon' });
+  if (o.mode === 'delivery' && autoLabelOn()) bonQ.push({ o, k: 'lbl' });
+  if (!was) runBon();
+}
+function runBon() { const j = bonQ[0]; if (!j) return; (j.k === 'lbl' ? printLabel : printBon)(j.o, () => { bonQ.shift(); setTimeout(runBon, 400); }); }
+const asView = o => Object.assign({}, o, { items: (o.order_items || o.items || []).map(i => Object.assign({}, i, { line_total: i.final_total != null ? i.final_total : i.line_total })) });
+const bonLogo = () => localStorage.getItem('so_bon_logo') !== '0';
 function bonHtml(o) {
   const mine = S.staff.role === 'shop' ? S.staff.shop_id : null;
   const items = o.order_items.filter(i => i.status !== 'rejected' && (!mine || i.shop_id === mine));
   const by = {}; items.forEach(i => (by[i.shop_id] = by[i.shop_id] || []).push(i));
-  const d = new Date(o.created_at);
-  return `<div class="bon">${localStorage.getItem('so_bon_logo') !== '0' ? '<img class="bon-logo" src="logo-dark.png" alt="">' : ''}<div class="bon-no">#${+o.id}</div>
-    <div class="bon-m">${o.mode === 'delivery' ? 'LIEFERUNG · توصيل' : 'ABHOLUNG · استلام'}</div>
-    <div class="bon-t">${d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' })}${o.scheduled_at ? '<br><b>Termin: ' + new Date(o.scheduled_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }) + '</b>' : ''}</div>
-    ${Object.keys(by).map(sid => `<div class="bon-s">${esc((App.shopById(sid) || {}).name_de || sid)}</div>` + by[sid].map(i => `<div class="bon-i"><b>${esc(fq(i.final_qty || i.qty, i.unit))}</b><span>${esc(i.name_de)}<small dir="rtl">${esc(i.name_ar)}</small>${(i.options || []).length ? `<small>${esc(i.options.map(x => x.de || x.ar).join(', '))}</small>` : ''}${i.note ? `<small>» ${esc(i.note)}</small>` : ''}${i.cake ? `<small>Torte ${esc(i.cake.date)} ${esc(i.cake.text || '')}</small>` : ''}</span></div>`).join('')).join('')}
-    ${o.note ? `<div class="bon-n">${esc(o.note)}</div>` : ''}
+  const tm = d => new Date(d).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' });
+  return `<div class="slip bon">${bonLogo() ? '<img class="sl-logo" src="logo-dark.png" alt="">' : ''}<div class="bon-no">#${+o.id}</div>
+    <div class="bon-m">${o.mode === 'delivery' ? 'LIEFERUNG · <span dir="rtl">توصيل</span>' : 'ABHOLUNG · <span dir="rtl">استلام</span>'}</div>
+    <div class="bon-t">${tm(o.created_at)}${o.scheduled_at ? '<br><b>Termin: ' + tm(o.scheduled_at) + '</b>' : ''}</div>
+    ${Object.keys(by).map(sid => `<div class="sl-shop">${esc((App.shopById(sid) || {}).name_de || sid)}</div>` + by[sid].map(i => `<div class="bon-i"><b class="q">${esc(fq(i.final_qty || i.qty, i.unit))}</b><div class="d"><b>${esc(i.name_de)}</b><div class="sl-ar" dir="rtl">${esc(i.name_ar)}</div>${(i.options || []).length ? `<div class="sl-sm">${esc(i.options.map(x => x.de || x.ar).join(', '))}</div>` : ''}${i.note ? `<div class="sl-sm">» ${esc(i.note)}</div>` : ''}${i.cake ? `<div class="sl-sm">Torte ${esc(i.cake.date)} ${esc(i.cake.text || '')}</div>` : ''}${i.cooled ? '<div class="sl-sm">❄ Kühlware</div>' : ''}</div></div>`).join('')).join('')}
+    ${o.note ? `<div class="lb-box"><b>Notiz:</b> ${esc(o.note)}</div>` : ''}
     <div class="bon-c">${esc(o.customer_name)} · ${esc(o.phone || '')}</div></div>`;
 }
-function printBon(o, done) {
+function printSlip(html, done, forceW) {
   let area = $('#bonArea'); if (!area) { area = document.createElement('div'); area.id = 'bonArea'; document.body.appendChild(area); }
-  area.innerHTML = bonHtml(o);
-  const w = bonW(); area.style.setProperty('--bonw', w === 'a4' ? '180mm' : w === 58 ? '48mm' : '72mm');
+  area.innerHTML = html;
+  const w = forceW || bonW(); const paper = w === 'a4' ? '210mm' : w === 58 ? '58mm' : '80mm';
+  area.style.setProperty('--bonw', w === 'a4' ? '180mm' : w === 58 ? '48mm' : '72mm');
+  // Papiergröße und Rand 0 setzen, sonst schneidet der Thermodrucker die Ränder ab
+  let pg = $('#slipPage'); if (!pg) { pg = document.createElement('style'); pg.id = 'slipPage'; document.head.appendChild(pg); }
+  pg.textContent = w === 'a4' ? '@page{size:A4;margin:12mm}' : `@page{size:${paper} auto;margin:0}`;
   document.body.classList.add('bonprint');
-  let fin = false; const end = () => { if (fin) return; fin = true; document.body.classList.remove('bonprint'); area.innerHTML = ''; window.removeEventListener('afterprint', end); done && done(); };
+  let fin = false; const end = () => { if (fin) return; fin = true; document.body.classList.remove('bonprint'); area.innerHTML = ''; pg.textContent = ''; window.removeEventListener('afterprint', end); done && done(); };
   window.addEventListener('afterprint', end);
-  setTimeout(() => { try { window.print(); } catch (_) {} setTimeout(end, 1500); }, 60);
+  const imgs = [...area.querySelectorAll('img')].filter(im => !im.complete);
+  Promise.all(imgs.map(im => new Promise(r => { im.onload = im.onerror = r; setTimeout(r, 1500); }))).then(() => setTimeout(() => { try { window.print(); } catch (_) {} setTimeout(end, 1500); }, 80));
 }
+function printBon(o, done) { printSlip(bonHtml(o), done); }
+function printLabel(o, done) { printSlip(App.labelHtml(asView(o)), done); }
 function printOrder(o) {
-  const asView = Object.assign({}, o, { items: o.order_items.map(i => Object.assign({}, i, { line_total: i.final_total != null ? i.final_total : i.line_total })) });
-  modal(`<button class="ib x noprint" data-close>${ic('x')}</button><div class="acts noprint" style="margin-bottom:10px"><button class="btn s" id="prt">${ic('print', 's')} ${esc(A('طباعة', 'Drucken'))}</button></div>${App.invoiceHtml(asView)}`);
-  $('#prt').onclick = () => window.print();
+  const v = asView(o); const thermal = bonW() !== 'a4';
+  modal(`<button class="ib x noprint" data-close>${ic('x')}</button><div class="acts noprint" style="margin-bottom:10px">
+    <button class="btn s" id="prt">${ic('print', 's')} ${esc(thermal ? A('اطبع على البون', 'Auf Bon drucken') : A('طباعة', 'Drucken'))}</button>
+    ${thermal ? `<button class="btn s o" id="prtA4">A4</button>` : ''}
+    <button class="btn s o" id="prtL">${ic('print', 's')} ${esc(A('ملصق الكيس', 'Tüten-Etikett'))}</button></div>
+    <div class="slip-prev">${thermal ? App.thermInvoiceHtml(v, bonLogo()) : App.invoiceHtml(v)}</div>`);
+  $('#prt').onclick = () => thermal ? printSlip(App.thermInvoiceHtml(v, bonLogo())) : window.print();
+  if ($('#prtA4')) $('#prtA4').onclick = () => printSlip(App.invoiceHtml(v), null, 'a4');
+  $('#prtL').onclick = () => printLabel(o);
 }
 
 /* ---------- products ---------- */
@@ -940,7 +966,7 @@ async function secCustomers(main) {
 }
 
 /* ---------- settings ---------- */
-const APPVER = '2026.11.22-11';
+const APPVER = '2026.11.22-13';
 const SETSEC = [
   ['general', 'store', 'معلومات المحل', 'Geschäftsdaten', 'الاسم، العنوان، Impressum', 'Name, Adresse, Impressum'],
   ['orders', 'inbox', 'استقبال الطلبات', 'Bestellannahme', 'إيقاف مؤقت، طلب مسبق، حد أدنى', 'Pause, Vorbestellung, Mindestwert'],
@@ -1017,8 +1043,9 @@ function secSettings(main) {
      <label class="chk"><input type="checkbox" id="dAuto" ${autoPrintOn() ? 'checked' : ''}><span><b>${esc(A('طباعة تلقائية لكل طلب جديد', 'Neue Bestellungen automatisch drucken'))}</b></span></label>
      <div class="row"><label class="f"><span>${esc(A('عرض ورق البون', 'Papierbreite Bon'))}</span><select id="dW"><option value="80" ${bonW() === 80 ? 'selected' : ''}>80 mm</option><option value="58" ${bonW() === 58 ? 'selected' : ''}>58 mm</option><option value="a4" ${bonW() === 'a4' ? 'selected' : ''}>A4</option></select></label>
      <label class="f"><span>${esc(A('عدد النسخ', 'Anzahl Kopien'))}</span><select id="dC">${[1, 2, 3].map(n => `<option ${bonCopies() === n ? 'selected' : ''}>${n}</option>`).join('')}</select></label></div>
+     <label class="chk"><input type="checkbox" id="dLbl" ${autoLabelOn() ? 'checked' : ''}><span><b>${esc(A('اطبع ملصق الكيس تلقائياً مع كل طلب توصيل', 'Bei Lieferungen automatisch das Tüten-Etikett drucken'))}</b></span></label>
      <label class="chk"><input type="checkbox" id="dLogo" ${localStorage.getItem('so_bon_logo') !== '0' ? 'checked' : ''}><span>${esc(A('اللوغو على البون', 'Logo auf dem Bon'))}</span></label>
-     <button class="btn s" id="dTest">${ic('print', 's')} ${esc(A('اطبع بون تجربة', 'Testbon drucken'))}</button>
+     <button class="btn s" id="dTest">${ic('print', 's')} ${esc(A('اطبع بون تجربة', 'Testbon drucken'))}</button><button class="btn s o" id="dTestL">${ic('print', 's')} ${esc(A('اطبع ملصق تجربة', 'Test-Etikett drucken'))}</button>
      <details class="howto"><summary>${esc(A('كيف بوصل الطابعة؟', 'Wie verbinde ich den Drucker?'))}</summary>
       <ol><li>${esc(A('اشتري طابعة بونات 80mm بتشتغل WLAN أو Bluetooth، ومكتوب عليها إنها بتدعم AirPrint (آيفون/آيباد) أو Mopria (أندرويد).', 'Einen 80-mm-Bondrucker mit WLAN oder Bluetooth kaufen, der AirPrint (iPhone/iPad) oder Mopria (Android) unterstützt.'))}</li>
       <li>${esc(A('أندرويد: الإعدادات ← الأجهزة المتصلة ← الطباعة ← فعّل «خدمة الطباعة الافتراضية» أو ركّب تطبيق الطابعة من Play Store. إذا الطابعة Bluetooth بس، ركّب تطبيق RawBT.', 'Android: Einstellungen → Verbundene Geräte → Drucken → „Standard-Druckdienst“ aktivieren oder die Drucker-App aus dem Play Store installieren. Bei reinem Bluetooth-Drucker die App RawBT nutzen.'))}</li>
@@ -1118,9 +1145,12 @@ function secSettings(main) {
   $('#dAuto').onchange = e => { localStorage.setItem('so_autoprint', e.target.checked ? '1' : '0'); toast('✓'); };
   $('#dW').onchange = e => { localStorage.setItem('so_bon_w', e.target.value); toast('✓'); };
   $('#dC').onchange = e => { localStorage.setItem('so_bon_copies', e.target.value); toast('✓'); };
+  $('#dLbl').onchange = e => { localStorage.setItem('so_auto_lbl', e.target.checked ? '1' : '0'); toast('✓'); };
   $('#dLogo').onchange = e => { localStorage.setItem('so_bon_logo', e.target.checked ? '1' : '0'); toast('✓'); };
   $('#dTest').onclick = () => printBon({ id: 1234, mode: 'delivery', created_at: new Date().toISOString(), customer_name: 'Test', phone: '0170 0000000', note: A('بون تجربة', 'Testbon'),
     order_items: [{ shop_id: (S.staff.shop_id || (S.shops[0] || {}).id), status: 'new', qty: 2, unit: 'piece', name_de: 'Testartikel', name_ar: 'منتج تجربة', options: [] }, { shop_id: (S.staff.shop_id || (S.shops[0] || {}).id), status: 'new', qty: 0.5, unit: 'kg', name_de: 'Oliven', name_ar: 'زيتون', options: [{ de: 'scharf', ar: 'حار' }] }] });
+  $('#dTestL').onclick = () => printLabel({ id: 1234, mode: 'delivery', created_at: new Date().toISOString(), customer_name: 'Test Kunde', phone: '0170 0000000', street: 'Steintorweg 4', plz: '20099', city: 'Hamburg', address_note: A('الطابق 2، الجرس: Test', '2. OG, Klingel: Test'), payment: 'cash', paid: false, total: 18.9,
+    order_items: [{ shop_id: (S.staff.shop_id || (S.shops[0] || {}).id), status: 'new', qty: 2, unit: 'piece', name_de: 'Testartikel', name_ar: 'منتج تجربة', options: [], line_total: 10 }] });
   paintPush($('#nPush')); $('#nPush').onclick = () => pushToggle($('#nPush'));
   $('#nTest').onclick = async () => {
     if (!('Notification' in window)) return toast(A('هالمتصفح ما بيدعم الإشعارات.', 'Dieser Browser unterstützt keine Mitteilungen.'), 1);
@@ -1254,6 +1284,7 @@ async function route(r, sec) {
   const st = await session();
   if (r === 'login' || r === 'team') { if (st) { location.hash = st.role === 'driver' ? '#/driver' : '#/admin/orders'; return; } return vLogin(); }
   if (!st) { location.hash = '#/team'; return; }
+  if (appKind() === 'fahrer' && st.role !== 'driver') { await sb.auth.signOut(); S.staff = null; location.hash = '#/team'; return vLogin(); }
   if (r === 'driver' || st.role === 'driver') { if (r !== 'driver' && sec !== 'account') { location.hash = '#/driver'; return; } if (r === 'driver') return vDriver(); }
   stopLive();
   sec = SECS[sec] && MENU.find(m => m[0] === sec && m[4].includes(st.role)) ? sec : 'orders';

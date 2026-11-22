@@ -429,21 +429,58 @@ body.dark .login-logo{filter:invert(1) hue-rotate(180deg) brightness(1.1)}
 
 /* ---------- Bon (80 mm slip) ---------- */
 #bonArea{display:none}
+/* Thermo-Bon, Rechnung als Bon, Tüten-Etikett: nur Schwarz, kräftige Schrift, nichts über den Rand */
+#bonArea{direction:ltr}
+.slip{width:var(--bonw,72mm);max-width:100%;box-sizing:border-box;margin:0 auto;padding:1mm 1.5mm 4mm;direction:ltr;text-align:left;color:#000;background:#fff;font-family:Plex,Arial,sans-serif;font-size:14px;font-weight:500;line-height:1.35;overflow-wrap:anywhere;-webkit-font-smoothing:none}
+.slip *{color:#000!important;box-sizing:border-box}
+.slip b{font-weight:700}
+.slip [dir=rtl]{direction:rtl;unicode-bidi:isolate}
+.sl-logo{display:block;width:62%;max-width:56mm;margin:0 auto 2mm;filter:grayscale(1) contrast(2)}
+.sl-h{display:flex;justify-content:space-between;align-items:baseline;font-size:20px;font-weight:700;border-bottom:2px solid #000;padding-bottom:1mm;margin-bottom:1.5mm}
+.sl-r{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.sl-r>span{min-width:0}.sl-r>b{white-space:nowrap;flex:none}
+.sl-hr{border-top:1.5px dashed #000;margin:2mm 0}
+.sl-lb{font-size:12px;font-weight:700;text-transform:none;margin-top:1.5mm}
+.sl-tx{line-height:1.4}
+.sl-shop{font-weight:700;font-size:15px;margin-top:2mm;border-bottom:1.5px solid #000;padding-bottom:.5mm}
+.sl-it{padding:1.2mm 0;border-top:1px dashed #000}.sl-shop+.sl-it{border-top:0}
+.sl-ar{display:block;text-align:right;font-size:14px;font-weight:600}
+.sl-sm{font-size:12.5px;font-weight:500}
+.sl-tot{font-size:19px;font-weight:700;border-top:2px solid #000;border-bottom:2px solid #000;padding:1mm 0;margin-top:1mm}
+.sl-tot2{font-weight:700;border-top:1.5px solid #000;margin-top:1mm;padding-top:1mm}
+.sl-vat{width:100%;border-collapse:collapse;margin-top:2mm;font-size:12px}
+.sl-vat th,.sl-vat td{text-align:right;padding:.4mm 0;white-space:nowrap}.sl-vat th:first-child,.sl-vat td:first-child{text-align:left}
+.sl-vat th{font-weight:700;border-bottom:1px solid #000}
+.sl-end{text-align:center;margin-top:3mm;font-weight:600}
+.bon-no{font-size:40px;font-weight:700;text-align:center;line-height:1.1}
+.bon-m{text-align:center;font-weight:700;font-size:15px;border-top:2px solid #000;border-bottom:2px solid #000;padding:1mm 0;margin:1mm 0}
+.bon-t{text-align:center;margin-bottom:1.5mm;font-size:14px}
+.bon-i{display:flex;gap:2mm;padding:1.5mm 0;border-bottom:1px dashed #000}
+.bon-i .q{flex:none;min-width:11mm;font-size:17px}.bon-i .d{flex:1;min-width:0}.bon-i .d>b{font-size:16px}
+.bon-c{margin-top:2mm;text-align:center;font-size:14px;font-weight:600}
+.lbl{font-size:15px}
+.lb-top{display:flex;justify-content:space-between;align-items:center;gap:2mm;border-bottom:3px solid #000;padding-bottom:1mm}
+.lb-no{font-size:44px;font-weight:700;line-height:1}
+.lb-mode{border:2.5px solid #000;padding:1mm 2mm;font-weight:700;font-size:14px;text-align:center;line-height:1.2}.lb-mode span{display:block}
+.lb-time{font-size:13px;margin:1.5mm 0}
+.lb-name{font-size:22px;font-weight:700;margin-top:2mm;line-height:1.2}
+.lb-addr{font-size:22px;font-weight:700;line-height:1.25;margin-top:1mm}
+.lb-tel{font-size:18px;font-weight:700;margin-top:1.5mm}
+.lb-box{border:2px solid #000;padding:1.5mm 2mm;margin-top:2mm;font-weight:600}
+.lb-pay{display:flex;justify-content:space-between;align-items:center;gap:2mm;border:3px solid #000;padding:2mm;margin-top:3mm}
+.lb-pay span{font-weight:700;font-size:15px;line-height:1.2}.lb-pay small{display:block;font-size:13px}.lb-pay b{font-size:22px;white-space:nowrap}
+.lb-cnt{margin-top:3mm}
+.lb-cool{margin-top:1.5mm;border:2px solid #000;text-align:center;font-weight:700;padding:1mm}
+.lb-qr{display:flex;align-items:center;gap:3mm;margin-top:3mm;font-size:12.5px;font-weight:600}.lb-qr .qr{width:26mm;flex:none;margin:0;padding:0;background:#fff}
+.lb-qr .qr svg{width:100%;height:auto;display:block}
+.lb-ft{margin-top:3mm;border-top:1.5px solid #000;padding-top:1mm;font-size:11.5px;text-align:center}
+.slip-prev{background:#fff;padding:10px 0;border-radius:10px;overflow:hidden}.slip-prev .slip{border:1px dashed #bbb}
+
 @media print{
   body.bonprint>*:not(#bonArea){display:none!important}
   body.bonprint #bonArea{display:block!important}
   body.bonprint{background:#fff!important}
 }
-.bon{width:var(--bonw,72mm);font-family:Plex,Arial,sans-serif;color:#000;font-size:13px;line-height:1.35;direction:ltr}
-.bon-no{font-size:34px;font-weight:700;text-align:center}
-.bon-m{text-align:center;font-weight:700;border-top:2px solid #000;border-bottom:2px solid #000;padding:3px 0;margin:4px 0}
-.bon-t{text-align:center;margin-bottom:6px}
-.bon-s{font-weight:700;margin-top:8px;border-bottom:1px dashed #000;padding-bottom:2px;text-transform:none}
-.bon-i{display:flex;gap:8px;padding:4px 0;border-bottom:1px dotted #999}
-.bon-i b{min-width:46px;font-size:15px}.bon-i span{flex:1}.bon-i small{display:block;font-size:12px}
-.bon-i small[dir=rtl]{text-align:right}
-.bon-n{margin-top:8px;padding:6px;border:1.5px solid #000;font-weight:600}
-.bon-c{margin-top:8px;text-align:center;font-size:12px}
 
 /* ---------- admin settings navigation ---------- */
 .setnav{display:grid;grid-template-columns:1fr;gap:8px}
@@ -457,7 +494,6 @@ body.dark .login-logo{filter:invert(1) hue-rotate(180deg) brightness(1.1)}
 .setbar{position:sticky;bottom:0;padding:10px 0 calc(10px + env(safe-area-inset-bottom));background:linear-gradient(transparent,var(--bg) 30%);z-index:4}
 .howto{margin-top:14px;border:1px solid var(--line);border-radius:var(--r1);padding:10px 14px;background:var(--raise)}
 .howto summary{cursor:pointer;font-weight:600}.howto ol{margin:10px 0 0;padding-inline-start:20px;line-height:1.6;font-size:14px}.howto li{margin-bottom:6px}
-.bon-logo{display:block;width:60%;margin:0 auto 4px;filter:grayscale(1) contrast(1.4)}
 
 /* ---------- customer settings ---------- */
 .setg h3{display:flex;align-items:center;gap:8px;margin-bottom:6px}
