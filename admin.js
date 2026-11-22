@@ -67,7 +67,7 @@ function shell(sec, inner) {
      <b style="font-size:17px;display:inline-flex;gap:8px;align-items:center">${ic(cur[1])} ${esc(A(cur[2], cur[3]))}</b><div class="sp"></div>
      <span class="note" style="display:none" id="liveDot">●</span>
      <button class="ib" id="alang">${esc(App.t('lang'))}</button></div></header>
-    <main class="wrap" id="amain">${inner || ''}</main>`;
+    <main class="wrap enter" id="amain">${inner || ''}</main>`;
   $('#alang').onclick = () => { App.setLang(S.lang === 'ar' ? 'de' : 'ar'); App.route(); };
   $('#amenu').onclick = () => {
     const d = document.createElement('div'); d.className = 'drawer';
@@ -202,14 +202,49 @@ function waText(o) {
   const link = location.origin + location.pathname + '#/track/' + o.token;
   return ar ? `مرحبا ${o.customer_name}، ${s[0]} (طلب #${o.id}) – بيت كرم Stein & Olive\n${link}` : `Hallo ${o.customer_name}, ${s[1]} (Bestellung #${o.id}) – Stein & Olive\n${link}`;
 }
+function codeErr(e) {
+  const m = String((e && e.message) || e);
+  if (/badcode/.test(m)) return toast(A('الكود غلط. اطلب الكود من الزبون، بيلاقيه بصفحة الطلب.', 'Code falsch. Bitte den Code vom Kunden zeigen lassen (steht auf seiner Bestellseite).'), 1);
+  if (/rate_limited/.test(m)) return toast(A('محاولات كتير. استنى ربع ساعة أو اتصل بالأدمن.', 'Zu viele Versuche. 15 Minuten warten oder den Admin anrufen.'), 1);
+  if (/status/.test(m)) return toast(A('الطلب مش بهالمرحلة.', 'Die Bestellung ist nicht in diesem Schritt.'), 1);
+  return err(e);
+}
+function codeDialog(o, done) {
+  const del = o.mode === 'delivery', cashQ = o.payment === 'cash', admin = S.staff && S.staff.role === 'admin';
+  const m = modal(`<button class="ib x" data-close>${ic('x')}</button>
+    <h3>${esc(del ? A('تسليم الطلب', 'Übergabe') : A('تسليم للزبون', 'An Kunde übergeben'))} #${+o.id}</h3>
+    <p class="note">${esc(A('اطلب من الزبون كود التسليم (4 أرقام). بيلاقيه بصفحة الطلب أو بالإيميل.', 'Lass dir vom Kunden den 4-stelligen Übergabe-Code nennen. Er steht auf seiner Bestellseite und in der E-Mail.'))}</p>
+    <input type="text" id="hcCode" class="codein" inputmode="numeric" autocomplete="one-time-code" maxlength="4" pattern="[0-9]*" placeholder="• • • •" aria-label="Code">
+    ${cashQ ? `<label class="chk" style="margin-top:12px"><input type="checkbox" id="hcCash"><span>${esc(A('حصّلت', 'Kassiert:'))} <b>${money(o.total)}</b> ${esc(A('كاش', 'bar'))}</span></label>` : ''}
+    <button class="btn g full" id="hcGo" style="margin-top:14px">${esc(A('تأكيد التسليم', 'Übergabe bestätigen'))}</button>
+    ${admin ? `<button class="lnk" id="hcOver" style="display:block;margin:12px auto 0">${esc(A('بدون كود (بس للأدمن)', 'Ohne Code (nur Admin)'))}</button>` : ''}`);
+  const inp = $('#hcCode', m); setTimeout(() => inp.focus(), 60);
+  inp.oninput = () => { inp.value = inp.value.replace(/\D/g, '').slice(0, 4); };
+  const cash = () => cashQ ? $('#hcCash', m).checked : null;
+  const go = async () => {
+    if (!/^\d{4}$/.test(inp.value)) { inp.classList.add('bad'); return toast(A('اكتب الكود (4 أرقام).', 'Bitte den 4-stelligen Code eingeben.'), 1); }
+    if (cashQ && !cash() && !confirm(A('ما حصّلت الكاش؟ رح ينحفظ إنو لسا ما انحصّل.', 'Bargeld nicht kassiert? Wird als offen gespeichert.'))) return;
+    const b = $('#hcGo', m); b.disabled = true;
+    const { error } = await sb.rpc('order_complete', { p_order: o.id, p_code: inp.value, p_cash: cash() });
+    b.disabled = false;
+    if (error) { inp.classList.add('bad'); inp.select(); return codeErr(error); }
+    closeModal(); toast('✓ #' + o.id); done && done();
+  };
+  $('#hcGo', m).onclick = go; inp.onkeydown = e => { if (e.key === 'Enter') go(); };
+  if ($('#hcOver', m)) $('#hcOver', m).onclick = async () => {
+    if (!confirm(A('أكيد بدك تسكّر الطلب بدون كود؟', 'Bestellung wirklich ohne Code abschließen?'))) return;
+    const { error } = await sb.rpc('order_set_status', { p_order: o.id, p_status: del ? 'delivered' : 'picked_up', p_cash: cash() });
+    if (error) return err(error); closeModal(); toast('✓ #' + o.id); done && done();
+  };
+}
 function bindOrderCards(root, refresh) {
   const run = async (p) => { try { const { error } = await p; if (error) throw error; await refresh(); } catch (e) { err(e); } };
   $$('[data-ss]', root).forEach(b => b.onclick = () => run(sb.rpc('shop_set_status', { p_order: +b.dataset.oid, p_status: b.dataset.ss })));
   $$('[data-os]', root).forEach(b => b.onclick = () => {
     const s = b.dataset.os; const o = ST.orders.find(x => x.id === +b.dataset.oid);
     if (s === 'cancelled' && !confirm(A('أكيد بدك تلغي الطلب؟ البضاعة بترجع للمخزون.', 'Bestellung wirklich stornieren? Ware wird zurückgebucht.'))) return;
-    let cash = null; if (s === 'delivered' && o && o.payment === 'cash') cash = confirm(A('تم تحصيل الكاش؟', 'Bargeld kassiert?'));
-    run(sb.rpc('order_set_status', { p_order: +b.dataset.oid, p_status: s, p_cash: cash }));
+    if ((s === 'picked_up' || s === 'delivered') && o) return codeDialog(o, refresh);
+    run(sb.rpc('order_set_status', { p_order: +b.dataset.oid, p_status: s, p_cash: null }));
   });
   $$('[data-rej]', root).forEach(b => b.onclick = () => { if (confirm(A('هالمنتج غير متوفر؟ رح ينشال من الطلب.', 'Artikel nicht verfügbar? Er wird aus der Bestellung entfernt.'))) run(sb.rpc('reject_item', { p_item: +b.dataset.rej })); });
   $$('[data-w]', root).forEach(b => b.onclick = () => { const v = parseFloat(String($(`[data-wq="${b.dataset.w}"]`, root).value).replace(',', '.')); if (!(v > 0)) return; run(sb.rpc('set_final_qty', { p_item: +b.dataset.w, p_qty: v })).then(() => toast(' ✓')); });
@@ -303,7 +338,7 @@ function editProduct(p, done) {
     <div class="grp"><h4>${esc(A('مسببات الحساسية (إجباري قانونياً)', 'Allergene (gesetzlich Pflicht)'))}</h4><div class="row">${Object.keys(ALLERGENS).map(a => `<label class="chk"><input type="checkbox" data-al="${a}" ${(p.allergens || []).includes(a) ? 'checked' : ''}><span>${esc(ALLERGENS[a][S.lang === 'ar' ? 0 : 1])}</span></label>`).join('')}</div></div>
     <div class="grp"><h4>${esc(A('خيارات وإضافات', 'Optionen & Extras'))}</h4><div class="note">${esc(A('كل سطر: عربي | Deutsch | السعر الإضافي. مثلاً: مفروم | Hack | 0', 'Je Zeile: Arabisch | Deutsch | Aufpreis. z. B. مفروم | Hack | 0'))}</div><div id="grpW"></div>
      <button class="btn s o" id="gAdd" style="margin-top:8px">${esc(A('مجموعة خيارات', 'Optionsgruppe'))}</button></div>
-    <div class="acts" style="margin-top:14px"><button class="btn" id="fSave" style="flex:1">${esc(A('حفظ', 'Speichern'))}</button>${!isNew ? `<button class="btn o" id="fDup"></button><button class="btn r" id="fDel"></button>` : ''}</div>`);
+    <div class="acts" style="margin-top:14px"><button class="btn" id="fSave" style="flex:1">${esc(A('حفظ', 'Speichern'))}</button>${!isNew ? `<button class="btn o" id="fDup">${esc(A('نسخ', 'Kopieren'))}</button><button class="btn r" id="fDel">${esc(A('حذف', 'Löschen'))}</button>` : ''}</div>`);
   const drawG = () => {
     $('#grpW', root).innerHTML = groups.map((g, i) => `<div class="card" style="padding:10px"><div class="row"><input type="text" data-gna="${i}" placeholder="اسم المجموعة (مثلاً التقطيع)" value="${esc(g.name_ar)}"><input type="text" data-gnd="${i}" placeholder="Gruppe (z. B. Zuschnitt)" value="${esc(g.name_de)}"></div>
       <textarea data-gt="${i}" style="margin-top:6px" placeholder="مفروم | Hack | 0&#10;شقف | Würfel | 0">${esc(g.text)}</textarea>
@@ -547,7 +582,7 @@ function secScan(main) {
   let mode = ST.scanMode || 'find'; const counts = ST.scanCounts || (ST.scanCounts = {});
   const pick = shopPicker(() => secScan(main));
   main.innerHTML = pick + `<div class="seg" id="smode">${[['find', ' بحث', ' Suchen'], ['in', ' استلام +1', ' Eingang +1'], ['count', ' جرد', ' Inventur'], ['order', ' تسليم طلب', ' Übergabe']].map(x => `<button data-v="${x[0]}" class="${mode === x[0] ? 'on' : ''}">${esc(A(x[1], x[2]))}</button>`).join('')}</div>
-    <div class="acts" style="margin:10px 0"><button class="btn" id="cam">${esc(A('شغّل الكاميرا', 'Kamera starten'))}</button><button class="btn o" id="camx"></button></div>
+    <div class="acts" style="margin:10px 0"><button class="btn" id="cam">${esc(A('شغّل الكاميرا', 'Kamera starten'))}</button><button class="btn o" id="camx">${esc(A('وقّف الكاميرا', 'Kamera aus'))}</button></div>
     <div class="scanbox" id="sbox"></div>
     <input type="text" id="sin" placeholder="${esc(A('أو امسح بجهاز الـ Scanner / اكتب الباركود + Enter', 'Oder Hand-Scanner / Barcode eintippen + Enter'))}" style="margin-top:10px" autocomplete="off">
     <div id="sres" style="margin-top:10px"></div>`;
@@ -587,7 +622,7 @@ function secScan(main) {
     res.innerHTML = `<div class="card"><div class="hd" style="display:flex;justify-content:space-between;align-items:center"><span class="big" style="font-size:26px">#${data.id}</span>${stPill(data.status)}</div>
       <div>${esc(data.name)} • ${data.mode === 'pickup' ? esc(A('استلام', 'Abholung')) : esc(A('توصيل', 'Lieferung'))}</div><div class="sum tot"><span>${esc(A(PAY[data.payment] ? PAY[data.payment][0] : '', PAY[data.payment] ? PAY[data.payment][1] : ''))}</span><span>${money(data.total)}</span></div>
       ${data.mode === 'pickup' && data.status === 'ready' ? `<button class="btn g full" id="hand">${esc(A('تم التسليم للزبون', 'An Kunde übergeben'))}</button>` : data.status !== 'ready' && data.mode === 'pickup' ? `<div class="warnbox">${esc(A('الطلب لسا مش جاهز بكل المحلات', 'Noch nicht in allen Geschäften fertig'))}</div>` : ''}</div>`;
-    if ($('#hand')) $('#hand').onclick = async () => { const { error } = await sb.rpc('order_set_status', { p_order: data.id, p_status: 'picked_up', p_cash: null }); if (error) return err(error); toast('✓ #' + data.id); res.innerHTML = `<div class="card" style="text-align:center;font-size:20px"> #${data.id}</div>`; };
+    if ($('#hand')) $('#hand').onclick = async () => { const { error } = await sb.rpc('order_complete', { p_order: data.id, p_code: tok, p_cash: null }); if (error) return codeErr(error); toast('✓ #' + data.id); res.innerHTML = `<div class="card" style="text-align:center;font-size:20px"> #${data.id}</div>`; };
   };
   inp.onkeydown = e => { if (e.key === 'Enter') { handle(inp.value); inp.value = ''; } };
   $('#cam').onclick = () => startCamera($('#sbox'), handle);
@@ -705,7 +740,7 @@ async function secCoupons(main) {
      <button class="btn" id="cGo">${esc(A('حفظ', 'Speichern'))}</button></div>
     ${data.map(c => `<div class="card" style="${c.active ? '' : 'opacity:.5'}"><div class="sum"><b>${esc(c.code)}</b><span>${c.kind === 'percent' ? (+c.value) + '%' : money(c.value)}</span></div>
       <div class="note">${c.shop_id ? esc(L(App.shopById(c.shop_id) || {}, 'name')) + ' • ' : ''}${+c.min_total ? esc(A('من', 'ab')) + ' ' + money(c.min_total) + ' • ' : ''}${esc(A('استُعمل', 'Genutzt'))} ${c.uses}${c.max_uses ? '/' + c.max_uses : ''}${c.expires ? ' •  ' + esc(c.expires) : ''}</div>
-      <div class="acts" style="margin-top:6px"><button class="btn s o" data-ct="${esc(c.code)}" data-a="${c.active ? 0 : 1}">${c.active ? esc(A('إيقاف', 'Pausieren')) : esc(A('تفعيل', 'Aktivieren'))}</button><button class="btn s r" data-cx="${esc(c.code)}"></button></div></div>`).join('')}`;
+      <div class="acts" style="margin-top:6px"><button class="btn s o" data-ct="${esc(c.code)}" data-a="${c.active ? 0 : 1}">${c.active ? esc(A('إيقاف', 'Pausieren')) : esc(A('تفعيل', 'Aktivieren'))}</button><button class="btn s r" data-cx="${esc(c.code)}">${esc(A('حذف', 'Löschen'))}</button></div></div>`).join('')}`;
   $('#cGo').onclick = async () => {
     const o = { code: $('#cC').value.trim().toUpperCase(), kind: $('#cT').value, value: parseFloat($('#cV').value) || 0, min_total: parseFloat($('#cM').value) || 0, max_uses: parseInt($('#cU').value) || null, expires: $('#cE').value || null, shop_id: admin ? ($('#cS').value || null) : S.staff.shop_id };
     if (!o.code || !o.value) return toast(A('عبّي الكود والقيمة', 'Code und Wert angeben'), 1);
@@ -722,7 +757,7 @@ async function secSuppliers(main) {
     const { data, error } = await sb.from('suppliers').select('*').eq('shop_id', sid).order('name'); if (error) return err(error);
     main.innerHTML = pick + `<div class="card"><h3>${esc(A('مورد جديد', 'Neuer Lieferant'))}</h3><div class="row"><input type="text" id="spN" placeholder="${esc(A('الاسم', 'Name'))}"><input type="tel" id="spP" placeholder="${esc(A('الهاتف / WhatsApp', 'Telefon / WhatsApp'))}"></div>
        <div class="row" style="margin-top:8px"><input type="email" id="spE" placeholder="E-Mail"><input type="text" id="spO" placeholder="${esc(A('ملاحظة', 'Notiz'))}"></div><button class="btn" id="spGo" style="margin-top:8px">${esc(A('حفظ', 'Speichern'))}</button></div>
-      ${data.map(s => `<div class="card"><div class="sum"><b>${esc(s.name)}</b><button class="btn s r" data-sx="${s.id}"></button></div><div class="note">${s.phone ? `<a href="tel:${esc(s.phone)}">${esc(s.phone)}</a> ` : ''}${s.email ? `<a href="mailto:${esc(s.email)}">${esc(s.email)}</a> ` : ''}${esc(s.note || '')}</div></div>`).join('')}`;
+      ${data.map(s => `<div class="card"><div class="sum"><b>${esc(s.name)}</b><button class="btn s r" data-sx="${s.id}">${esc(A('حذف', 'Löschen'))}</button></div><div class="note">${s.phone ? `<a href="tel:${esc(s.phone)}">${esc(s.phone)}</a> ` : ''}${s.email ? `<a href="mailto:${esc(s.email)}">${esc(s.email)}</a> ` : ''}${esc(s.note || '')}</div></div>`).join('')}`;
     $('#spGo').onclick = async () => { const n = $('#spN').value.trim(); if (!n) return; const { error } = await sb.from('suppliers').insert({ shop_id: sid, name: n, phone: $('#spP').value.trim(), email: $('#spE').value.trim(), note: $('#spO').value.trim() }); if (error) return err(error); draw(); };
     $$('[data-sx]').forEach(b => b.onclick = async () => { if (!confirm('?')) return; await sb.from('suppliers').delete().eq('id', b.dataset.sx); draw(); });
   };
@@ -860,15 +895,37 @@ function secAccount(main) {
 }
 
 /* ---------- driver portal ---------- */
-function stopGeo() { if (ST.geo != null) { navigator.geolocation.clearWatch(ST.geo); ST.geo = null; } }
+function stopGeo() {
+  if (ST.geo != null && navigator.geolocation) navigator.geolocation.clearWatch(ST.geo);
+  ST.geo = null; clearInterval(ST.geoTimer); ST.geoTimer = null; ST.geoPos = null; ST.geoLast = 0;
+}
+function sendPos() {
+  const p = ST.geoPos; if (!p || !S.staff) return;
+  const mine = ST.orders.filter(o => o.driver_id === S.staff.user_id && o.status === 'on_way');
+  // supabase rpc() only runs once awaited/then'd
+  mine.forEach(o => sb.rpc('driver_pos', { p_order: o.id, lat: p.lat, lng: p.lng }).then(({ error }) => { ST.geoSendErr = !!error; geoBox(); }));
+  ST.geoLast = Date.now(); geoBox();
+}
+function geoBox() {
+  const el = $('#geoInfo'); if (!el || !S.staff) return;
+  const onWay = ST.orders.some(o => o.driver_id === S.staff.user_id && o.status === 'on_way');
+  if (!onWay) { el.innerHTML = ''; return; }
+  if (ST.geoErr === 'denied' || ST.geoErr === 'unsupported') { el.innerHTML = `<div class="warnbox bad">${ic('alert', 's')}<span>${esc(A('الموقع مسكّر، والزبون ما عم يشوفك. فعّل الموقع (Standort) للمتصفح من إعدادات الموبايل، وبعدين حدّث الصفحة.', 'Standort ist blockiert, der Kunde sieht dich nicht. Standort für den Browser in den Handy-Einstellungen erlauben und Seite neu laden.'))}</span></div>`; return; }
+  if (!ST.geoPos) { el.innerHTML = `<div class="warnbox">${ic('clock', 's')}<span>${esc(A('عم ندوّر على موقعك… إذا سألك المتصفح، اكبس «سماح».', 'Standort wird gesucht… Wenn der Browser fragt, bitte „Zulassen“ tippen.'))}</span></div>`; return; }
+  el.innerHTML = `<div class="infobox">${ic('check', 's')}<span>${esc(A('موقعك عم يتشارك مع الزبون. خلّي الصفحة مفتوحة.', 'Dein Standort wird mit dem Kunden geteilt. Seite geöffnet lassen.'))}${ST.geoSendErr ? ' ⚠' : ''}</span></div>`;
+}
 function syncGeo() {
   const mine = ST.orders.filter(o => o.driver_id === S.staff.user_id && o.status === 'on_way');
-  if (!mine.length) { stopGeo(); return; }
-  if (ST.geo != null || !navigator.geolocation) return;
+  if (!mine.length) { stopGeo(); geoBox(); return; }
+  if (!navigator.geolocation) { ST.geoErr = 'unsupported'; geoBox(); return; }
+  if (ST.geo != null) { geoBox(); return; }
+  ST.geoErr = null;
   ST.geo = navigator.geolocation.watchPosition(pos => {
-    if (Date.now() - ST.geoLast < 15000) return; ST.geoLast = Date.now();
-    ST.orders.filter(o => o.driver_id === S.staff.user_id && o.status === 'on_way').forEach(o => sb.rpc('driver_pos', { p_order: o.id, lat: pos.coords.latitude, lng: pos.coords.longitude }));
-  }, () => {}, { enableHighAccuracy: true, maximumAge: 10000 });
+    ST.geoPos = { lat: pos.coords.latitude, lng: pos.coords.longitude }; ST.geoErr = null;
+    if (!ST.geoLast || Date.now() - ST.geoLast > 12000) sendPos(); else geoBox();
+  }, e => { ST.geoErr = e && e.code === 1 ? 'denied' : 'unavail'; geoBox(); }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 30000 });
+  clearInterval(ST.geoTimer); ST.geoTimer = setInterval(sendPos, 15000);
+  geoBox();
 }
 async function vDriver() {
   document.body.classList.add('staff');
@@ -888,8 +945,7 @@ async function vDriver() {
   function draw() {
     const el = $('#dlist'); if (!el) return;
     Object.keys(sets).forEach(k => { const c = $('#dc_' + k); if (c) c.textContent = '(' + ST.orders.filter(o => o.mode === 'delivery' && sets[k](o)).length + ')'; });
-    const onWay = ST.orders.some(o => o.driver_id === me && o.status === 'on_way');
-    $('#geoInfo').innerHTML = onWay ? `<div class="warnbox">${esc(A('موقعك عم يتشارك مع الزبون. خلّي الصفحة مفتوحة.', 'Dein Standort wird mit dem Kunden geteilt. Seite geöffnet lassen.'))}</div>` : '';
+    geoBox();
     const list = ST.orders.filter(o => o.mode === 'delivery' && sets[tab](o)).sort((a, b) => a.id - b.id);
     if (tab === 'done') { const cash = list.filter(o => o.payment === 'cash' && o.cash_collected).reduce((s, o) => s + +o.total, 0);
       el.innerHTML = `<div class="kpis"><div class="kpi"><small>${esc(A('توصيلات', 'Fahrten'))}</small><b>${list.length}</b></div><div class="kpi"><small>${esc(A('كاش معك', 'Bargeld bei dir'))}</small><b>${money(cash)}</b></div></div>` + list.map(o => `<div class="card"><div class="sum"><b>#${o.id}</b><span>${money(o.total)} ${o.payment === 'cash' ? (o.cash_collected ? '✓' : '?') : ''}</span></div><div class="note">${esc(o.street)}, ${esc(o.plz)}</div></div>`).join(''); return; }
@@ -908,17 +964,15 @@ async function vDriver() {
         <div class="acts" style="margin-top:8px">
          ${tab === 'avail' ? `<button class="btn g" data-take="${o.id}">${esc(A('بآخدها', 'Übernehmen'))}</button>` : ''}
          ${tab === 'mine' ? `<a class="btn s o" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addr)}">${esc(A('الطريق', 'Navigation'))}</a>
-           <a class="btn s o" href="tel:${esc(o.phone)}"></a>${wa ? `<a class="btn s o" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${encodeURIComponent(o.lang === 'de' ? `Hallo ${o.customer_name}, ich bin dein Fahrer von Stein & Olive (#${o.id}).` : `مرحبا ${o.customer_name}، أنا السائق من بيت كرم (طلب #${o.id}).`)}">${ic('chat', 's')}</a>` : ''}
+           <a class="btn s o" href="tel:${esc(o.phone)}" aria-label="${esc(A('اتصال', 'Anrufen'))}">${ic('phone', 's')}</a>${wa ? `<a class="btn s o" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${encodeURIComponent(o.lang === 'de' ? `Hallo ${o.customer_name}, ich bin dein Fahrer von Stein & Olive (#${o.id}).` : `مرحبا ${o.customer_name}، أنا السائق من بيت كرم (طلب #${o.id}).`)}">${ic('chat', 's')}</a>` : ''}
            ${o.status === 'ready' ? `<button class="btn w" data-go="${o.id}">${esc(A('طلعت', 'Losfahren'))}</button>` : ''}
            ${o.status === 'on_way' ? `<button class="btn g" data-dn="${o.id}">${esc(A('وصّلت', 'Zugestellt'))}</button>` : ''}
-           ${o.status !== 'on_way' ? `<button class="btn s o" data-rel="${o.id}"></button>` : ''}` : ''}</div></div>`; }).join('') : `<div class="empty">${esc(A('ما في طلبات هلق', 'Gerade keine Aufträge'))}</div>`;
+           ${o.status !== 'on_way' ? `<button class="btn s o" data-rel="${o.id}">${esc(A('اتركها', 'Abgeben'))}</button>` : ''}` : ''}</div></div>`; }).join('') : `<div class="empty">${esc(A('ما في طلبات هلق', 'Gerade keine Aufträge'))}</div>`;
     const run = async p => { const { error } = await p; if (error) { if (/taken/.test(error.message)) toast(A('سائق تاني أخدها', 'Schon vergeben'), 1); else err(error); } await refresh(); };
     $$('[data-take]', el).forEach(b => b.onclick = () => run(sb.rpc('driver_take', { p_order: +b.dataset.take })).then(() => { tab = ST.dtab = 'mine'; $$('#dtabs button').forEach(x => x.classList.toggle('on', x.dataset.t === 'mine')); draw(); }));
-    $$('[data-rel]', el).forEach(b => b.onclick = () => { if (confirm('?')) run(sb.rpc('driver_release', { p_order: +b.dataset.rel })); });
+    $$('[data-rel]', el).forEach(b => b.onclick = () => { if (confirm(A('بدك تترك هالطلب لسائق تاني؟', 'Auftrag für andere Fahrer freigeben?'))) run(sb.rpc('driver_release', { p_order: +b.dataset.rel })); });
     $$('[data-go]', el).forEach(b => b.onclick = () => run(sb.rpc('order_set_status', { p_order: +b.dataset.go, p_status: 'on_way', p_cash: null })));
-    $$('[data-dn]', el).forEach(b => b.onclick = () => { const o = ST.orders.find(x => x.id === +b.dataset.dn); let cash = null;
-      if (o.payment === 'cash') { cash = confirm(A(`حصّلت ${money(o.total)} كاش؟`, `${money(o.total)} bar kassiert?`)); }
-      run(sb.rpc('order_set_status', { p_order: o.id, p_status: 'delivered', p_cash: cash })); });
+    $$('[data-dn]', el).forEach(b => b.onclick = () => { const o = ST.orders.find(x => x.id === +b.dataset.dn); if (o) codeDialog(o, refresh); });
   }
   await refresh(); startLive(refresh);
 }

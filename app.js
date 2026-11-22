@@ -3,6 +3,9 @@
 'use strict';
 const CFG = window.SO_CONFIG;
 const sb = window.supabase.createClient(CFG.url, CFG.key, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'so-staff-auth' } });
+// customer-only calls always go out anonymously, even when staff is logged in on the same device
+let sbAnon = null;
+const anon = () => sbAnon || (sbAnon = window.supabase.createClient(CFG.url, CFG.key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'so-anon' } }));
 
 /* ---------- icons (eigene Linien-Icons) ---------- */
 const IC = {
@@ -61,14 +64,14 @@ const T = {
   showqr:'ورجي هالكود بالمحل وقت الاستلام', driver:'السائق', rate:'كيف كان', thanks:'شكراً، وصل تقييمك', receipt:'الفاتورة', print:'طباعة', staff:'دخول الموظفين',
   privacy:'الخصوصية', terms:'الشروط', hours:'أوقات الدوام', days:{mo:'الإثنين',di:'الثلاثاء',mi:'الأربعاء',do:'الخميس',fr:'الجمعة',sa:'السبت',so:'الأحد'},
   closedday:'مغلق', sent:'وصل طلبك', err:'ما زبطت العملية. جرّب مرة تانية.', schedreq:'في محل مسكّر هلق. اختار وقت لاحق ومنحضّر طلبك عليه.', paypalnote:'بعد ما ترسل الطلب بتنفتح صفحة PayPal للدفع.', contact:'تواصل معنا',
-  e_zone:'ما منوصل لهالرمز البريدي.', e_min:'الحد الأدنى للطلب', e_coupon:'كود الخصم غير صالح.', e_coupon_min:'كود الخصم بيشتغل من', e_stock:'الكمية غير متوفرة:', e_closed:'المحل مسكّر:', e_contact:'اكتب اسمك ورقم هاتفك.', e_address:'اكتب الشارع والرمز البريدي.', e_product:'في منتج ما عاد متوفر. حدّث الصفحة.',
+  e_zone:'ما منوصل لهالرمز البريدي.', e_min:'الحد الأدنى للطلب', e_coupon:'كود الخصم غير صالح.', e_coupon_min:'كود الخصم بيشتغل من', e_stock:'الكمية غير متوفرة:', e_closed:'المحل مسكّر:', e_contact:'اكتب اسمك ورقم هاتفك.', e_address:'اكتب العنوان كامل: الشارع ورقم البيت (مثلاً Steintorweg 4)، والرمز البريدي (5 أرقام) والمدينة.', e_product:'في منتج ما عاد متوفر. حدّث الصفحة.',
   e_phone:'رقم الهاتف غير صحيح.', e_payment:'طريقة الدفع غير متاحة.', e_time:'اختار وقت بعد ربع ساعة على الأقل.', e_option:'اختار:', e_cakedate:'اختار تاريخ من بكرا وطالع.', e_rate:'محاولات كتيرة. استنى شوي وجرّب مرة تانية.',
   e_email:'الإيميل غير صحيح.', e_exists:'في حساب بهالإيميل. سجّل دخول.', e_login:'الإيميل أو كلمة السر غلط.', e_session:'انتهت الجلسة. سجّل دخول مرة تانية.', e_password:'كلمة السر لازم تكون 8 أحرف على الأقل.', e_agree:'وافق على الشروط لتكمل.',
   items:'منتجات', estim:'تقريباً', comment:'تعليق (اختياري)', send:'إرسال', back:'رجوع', hero:'خمسة محلات تحت سقف واحد. اطلب من كلهم بطلب واحد وبتوصلك بمشوار واحد.',
   noresults:'ما لقينا شي بهالاسم.', vatincl:'كل الأسعار شاملة الضريبة.', orderno:'رقم الطلب', light:'الوضع الفاتح', dark:'الوضع الداكن', lang:'Deutsch', langs:'DE',
   login:'تسجيل الدخول', register:'حساب جديد', password:'كلمة السر', newpass:'كلمة سر جديدة', oldpass:'كلمة السر الحالية', logout:'تسجيل الخروج', save:'حفظ', saved:'انحفظ',
   welcome:'أهلاً', profile:'معلوماتي', address:'عنوان التوصيل', noorders:'لسا ما طلبت شي.', reorder:'اطلب نفس الطلب', added:'انضاف للسلة', loginhint:'سجّل دخول لتحفظ عنوانك وتشوف طلباتك.',
-  orguest:'أو كمّل بدون حساب', haveacc:'عندك حساب؟', noacc:'ما عندك حساب؟', changepass:'تغيير كلمة السر', forgot:'نسيت كلمة السر؟', forgot_t:'كلمة سر جديدة', forgot_p:'اكتب الإيميل تبع حسابك. منبعتلك رابط تحط فيه كلمة سر جديدة.', forgot_send:'ابعت الرابط', forgot_ok:'إذا في حساب بهالإيميل، وصلك رابط. شوف الإيميل (وكمان مجلد Spam). الرابط شغال ساعة وحدة.', reset_t:'حط كلمة سر جديدة', newpass2:'أعد كلمة السر', e_nomatch:'كلمتين السر مش متل بعض.', e_resetbad:'الرابط مش صالح أو انتهى. اطلب رابط جديد.', reset_ok:'تغيّرت كلمة السر.',
+  orguest:'أو كمّل بدون حساب', haveacc:'عندك حساب؟', noacc:'ما عندك حساب؟', changepass:'تغيير كلمة السر', e_locked:'الطلب خلص أو صار بالطريق، ما فيك تغيّر فيه.', e_needcode:'لازم كود التسليم من الزبون.', e_badcode:'الكود غلط.', code_d:'كود التسليم: عطيه للسائق لما يوصل', code_p:'كود الاستلام: قولو بالمحل أو ورجيهن الـ QR', posat:'آخر تحديث للموقع:', posnone:'السائق بالطريق. موقعو رح يبين هون بعد شوي.', forgot:'نسيت كلمة السر؟', forgot_t:'كلمة سر جديدة', forgot_p:'اكتب الإيميل تبع حسابك. منبعتلك رابط تحط فيه كلمة سر جديدة.', forgot_send:'ابعت الرابط', forgot_ok:'إذا في حساب بهالإيميل، وصلك رابط. شوف الإيميل (وكمان مجلد Spam). الرابط شغال ساعة وحدة.', reset_t:'حط كلمة سر جديدة', newpass2:'أعد كلمة السر', e_nomatch:'كلمتين السر مش متل بعض.', e_resetbad:'الرابط مش صالح أو انتهى. اطلب رابط جديد.', reset_ok:'تغيّرت كلمة السر.',
   recent:'بحثت مؤخراً', suggest:'جرّب', deliveryfrom:'التوصيل من', pickuphere:'استلام من Steintorweg 4', orderas:'الطلب باسم', change:'تغيير', clear:'مسح',
   hmin:'دقيقة', addcart:'أضف', options:'الخيارات', orders:'طلبات', cancelnote:'لإلغاء الطلب اتصل بالمحل.', whatsapp:'واتساب', viewcart:'عرض السلة'
  },
@@ -85,14 +88,14 @@ const T = {
   showqr:'Zeige diesen Code bei der Abholung', driver:'Fahrer', rate:'Wie war', thanks:'Danke für deine Bewertung', receipt:'Beleg', print:'Drucken', staff:'Personal-Login',
   privacy:'Datenschutz', terms:'AGB', hours:'Öffnungszeiten', days:{mo:'Montag',di:'Dienstag',mi:'Mittwoch',do:'Donnerstag',fr:'Freitag',sa:'Samstag',so:'Sonntag'},
   closedday:'Geschlossen', sent:'Bestellung eingegangen', err:'Das hat nicht geklappt. Bitte erneut versuchen.', schedreq:'Ein Geschäft hat gerade geschlossen. Wähle eine spätere Uhrzeit, dann bereiten wir alles dafür vor.', paypalnote:'Nach dem Absenden öffnet sich PayPal zur Zahlung.', contact:'Kontakt',
-  e_zone:'Für diese PLZ liefern wir nicht.', e_min:'Mindestbestellwert', e_coupon:'Gutscheincode ungültig.', e_coupon_min:'Gutschein gilt ab', e_stock:'Nicht genug vorrätig:', e_closed:'Geschäft geschlossen:', e_contact:'Bitte Name und Telefon angeben.', e_address:'Bitte Straße und PLZ angeben.', e_product:'Ein Produkt ist nicht mehr verfügbar. Bitte Seite neu laden.',
+  e_zone:'Für diese PLZ liefern wir nicht.', e_min:'Mindestbestellwert', e_coupon:'Gutscheincode ungültig.', e_coupon_min:'Gutschein gilt ab', e_stock:'Nicht genug vorrätig:', e_closed:'Geschäft geschlossen:', e_contact:'Bitte Name und Telefon angeben.', e_address:'Bitte vollständige Adresse angeben: Straße mit Hausnummer (z. B. Steintorweg 4), PLZ (5 Ziffern) und Ort.', e_product:'Ein Produkt ist nicht mehr verfügbar. Bitte Seite neu laden.',
   e_phone:'Telefonnummer ungültig.', e_payment:'Zahlungsart nicht verfügbar.', e_time:'Bitte eine Uhrzeit mindestens 15 Minuten später wählen.', e_option:'Bitte wählen:', e_cakedate:'Bitte ein Datum ab morgen wählen.', e_rate:'Zu viele Versuche. Bitte kurz warten.',
   e_email:'E-Mail ungültig.', e_exists:'Für diese E-Mail gibt es schon ein Konto. Bitte anmelden.', e_login:'E-Mail oder Passwort falsch.', e_session:'Sitzung abgelaufen. Bitte erneut anmelden.', e_password:'Das Passwort braucht mindestens 8 Zeichen.', e_agree:'Bitte AGB und Datenschutz akzeptieren.',
   items:'Artikel', estim:'ca.', comment:'Kommentar (optional)', send:'Senden', back:'Zurück', hero:'Fünf Geschäfte unter einem Dach. Eine Bestellung, eine Lieferung.',
   noresults:'Dazu haben wir nichts gefunden.', vatincl:'Alle Preise inkl. MwSt.', orderno:'Bestellnummer', light:'Heller Modus', dark:'Dunkler Modus', lang:'العربية', langs:'ع',
   login:'Anmelden', register:'Konto erstellen', password:'Passwort', newpass:'Neues Passwort', oldpass:'Aktuelles Passwort', logout:'Abmelden', save:'Speichern', saved:'Gespeichert',
   welcome:'Hallo', profile:'Meine Daten', address:'Lieferadresse', noorders:'Du hast noch nichts bestellt.', reorder:'Erneut bestellen', added:'Im Warenkorb', loginhint:'Melde dich an, um deine Adresse zu speichern und Bestellungen zu sehen.',
-  orguest:'oder ohne Konto weiter', haveacc:'Schon ein Konto?', noacc:'Noch kein Konto?', changepass:'Passwort ändern', forgot:'Passwort vergessen?', forgot_t:'Neues Passwort', forgot_p:'Gib die E-Mail deines Kontos ein. Wir schicken dir einen Link, mit dem du ein neues Passwort festlegst.', forgot_send:'Link senden', forgot_ok:'Wenn es ein Konto mit dieser E-Mail gibt, ist ein Link unterwegs. Schau ins Postfach (auch in den Spam-Ordner). Der Link gilt eine Stunde.', reset_t:'Neues Passwort festlegen', newpass2:'Passwort wiederholen', e_nomatch:'Die Passwörter stimmen nicht überein.', e_resetbad:'Der Link ist ungültig oder abgelaufen. Fordere einen neuen an.', reset_ok:'Passwort geändert.',
+  orguest:'oder ohne Konto weiter', haveacc:'Schon ein Konto?', noacc:'Noch kein Konto?', changepass:'Passwort ändern', e_locked:'Die Bestellung ist abgeschlossen oder unterwegs und kann nicht mehr geändert werden.', e_needcode:'Dafür brauchst du den Übergabe-Code vom Kunden.', e_badcode:'Code falsch.', code_d:'Übergabe-Code: nenne ihn dem Fahrer bei der Ankunft', code_p:'Abhol-Code: im Geschäft nennen oder QR-Code zeigen', posat:'Standort aktualisiert:', posnone:'Der Fahrer ist unterwegs. Sein Standort erscheint hier gleich.', forgot:'Passwort vergessen?', forgot_t:'Neues Passwort', forgot_p:'Gib die E-Mail deines Kontos ein. Wir schicken dir einen Link, mit dem du ein neues Passwort festlegst.', forgot_send:'Link senden', forgot_ok:'Wenn es ein Konto mit dieser E-Mail gibt, ist ein Link unterwegs. Schau ins Postfach (auch in den Spam-Ordner). Der Link gilt eine Stunde.', reset_t:'Neues Passwort festlegen', newpass2:'Passwort wiederholen', e_nomatch:'Die Passwörter stimmen nicht überein.', e_resetbad:'Der Link ist ungültig oder abgelaufen. Fordere einen neuen an.', reset_ok:'Passwort geändert.',
   recent:'Zuletzt gesucht', suggest:'Vorschläge', deliveryfrom:'Lieferung ab', pickuphere:'Abholung am Steintorweg 4', orderas:'Bestellung als', change:'Ändern', clear:'Löschen',
   hmin:'Min.', addcart:'Hinzufügen', options:'Optionen', orders:'Bestellungen', cancelnote:'Zum Stornieren bitte das Geschäft anrufen.', whatsapp:'WhatsApp', viewcart:'Warenkorb ansehen'
  }
@@ -148,7 +151,7 @@ function errMsg(e) {
   const k = m.split(':')[0].trim();
   const rest = m.includes(':') ? m.slice(m.indexOf(':') + 1).trim() : '';
   const map = { zone:'e_zone', min:'e_min', coupon:'e_coupon', coupon_min:'e_coupon_min', stock:'e_stock', closed:'e_closed', contact:'e_contact', address:'e_address', product:'e_product',
-    phone:'e_phone', payment:'e_payment', time:'e_time', option:'e_option', cakedate:'e_cakedate', rate_limited:'e_rate', email:'e_email', exists:'e_exists', login:'e_login', session:'e_session', password:'e_password', resetbad:'e_resetbad' };
+    phone:'e_phone', payment:'e_payment', time:'e_time', option:'e_option', cakedate:'e_cakedate', rate_limited:'e_rate', email:'e_email', exists:'e_exists', login:'e_login', session:'e_session', password:'e_password', resetbad:'e_resetbad', locked:'e_locked', needcode:'e_needcode', badcode:'e_badcode' };
   if (map[k]) return t(map[k]) + (rest ? ' ' + (k === 'min' || k === 'coupon_min' ? money(rest) : rest) : '');
   if (/fetch|network/i.test(m)) return S.lang === 'ar' ? 'ما في اتصال بالإنترنت.' : 'Keine Internetverbindung.';
   return t('err');
@@ -279,7 +282,7 @@ function tabbar(active) {
   const it = (h, i, k, a) => `<a href="${h}" class="${active === a ? 'on' : ''}">${ic(i)}<span>${esc(t(k))}</span>${a === 'cart' ? `<span class="cnt" id="tcnt" ${n ? '' : 'hidden'}>${n}</span>` : ''}</a>`;
   return `<nav class="tabbar noprint" aria-label="Navigation">${it('#/', 'home', 'home', 'home')}<a href="#/" data-search>${ic('search')}<span>${esc(t('search'))}</span></a>${it('#/cart', 'bag', 'cart', 'cart')}${it('#/account', 'user', 'account', 'account')}</nav>`;
 }
-function refreshCounts() { const n = cartTotals().n; ['#hcnt', '#tcnt'].forEach(id => { const el = $(id); if (el) { el.textContent = n; el.hidden = !n; } }); const cb = $('#cbar'); if (cb) cb.outerHTML = cartBar(); }
+function refreshCounts() { const n = cartTotals().n; ['#hcnt', '#tcnt'].forEach(id => { const el = $(id); if (el) { const up = +el.textContent < n; el.textContent = n; el.hidden = !n; if (up) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } } }); const cb = $('#cbar'); if (cb) cb.outerHTML = cartBar(); }
 function footer() {
   const s = S.settings;
   return `<footer class="foot noprint"><div class="in">
@@ -297,7 +300,8 @@ function cartBar() {
 function page(inner, opt) {
   opt = opt || {};
   document.body.classList.remove('staff', 'tvmode');
-  $('#app').innerHTML = header() + `<main class="wrap gl" id="main">${inner}</main>` + footer() + (opt.noBar ? '' : cartBar()) + tabbar(opt.tab);
+  const enter = page.nav; page.nav = false;
+  $('#app').innerHTML = header() + `<main class="wrap gl${enter ? ' enter' : ''}" id="main">${inner}</main>` + footer() + (opt.noBar ? '' : cartBar()) + tabbar(opt.tab);
   topTone();
   $('#langBtn').onclick = () => { setLang(S.lang === 'ar' ? 'de' : 'ar'); route(); };
   $('#menuBtn').onclick = drawer;
@@ -528,9 +532,9 @@ async function vCheckout() {
     <div class="row"><label class="f"><span>${esc(t('name'))}</span><input type="text" id="cN" autocomplete="name" maxlength="80" value="${esc(saved.name || '')}"></label>
     <label class="f"><span>${esc(t('phone'))}</span><input type="tel" id="cP" autocomplete="tel" maxlength="40" value="${esc(saved.phone || '')}"></label></div>
     <label class="f"><span>${esc(t('emailopt'))}</span><input type="email" id="cE" autocomplete="email" maxlength="120" value="${esc(saved.email || '')}"></label></div>
-   <div class="card" id="addr"><h3>${esc(t('address'))}</h3><label class="f"><span>${esc(t('street'))}</span><input type="text" id="cS" autocomplete="street-address" maxlength="160" value="${esc(saved.street || '')}"></label>
+   <div class="card" id="addr"><h3>${esc(t('address'))}</h3><label class="f"><span>${esc(t('street'))}</span><input type="text" id="cS" autocomplete="address-line1" maxlength="160" placeholder="Steintorweg 4" value="${esc(saved.street || '')}"></label>
      <div class="row"><label class="f"><span>${esc(t('plz'))}</span><input type="text" inputmode="numeric" id="cZ" maxlength="5" autocomplete="postal-code" value="${esc(saved.plz || '')}"></label>
-     <label class="f"><span>${esc(t('city'))}</span><input type="text" id="cC" maxlength="80" value="${esc(saved.city || 'Hamburg')}"></label></div>
+     <label class="f"><span>${esc(t('city'))}</span><input type="text" id="cC" autocomplete="address-level2" maxlength="80" value="${esc(saved.city || 'Hamburg')}"></label></div>
      <div id="zinfo"></div>
      <label class="f"><span>${esc(t('addrnote'))}</span><input type="text" id="cAN" maxlength="200" value="${esc(saved.address_note || '')}"></label></div>
    <div class="card"><h3>${esc(t('when'))}</h3>${!allOpen ? `<div class="warnbox">${ic('clock', 's')}<span>${esc(t('schedreq'))}</span></div>` : ''}
@@ -570,7 +574,15 @@ async function vCheckout() {
     const v = (id, m) => clean($(id).value, m);
     if (!v('#cN', 80) || !v('#cP', 40)) return toast(t('e_contact'), 1);
     if (!/^[0-9+ ()/-]{6,40}$/.test(v('#cP', 40))) return toast(t('e_phone'), 1);
-    if (st.mode === 'delivery' && (!v('#cS', 160) || !v('#cZ', 10))) return toast(t('e_address'), 1);
+    if (st.mode === 'delivery') {
+      const bad = [];
+      const str = v('#cS', 160);
+      if (str.length < 5 || !/\p{L}/u.test(str) || !/\d/.test(str)) bad.push('#cS');
+      if (!/^\d{5}$/.test(v('#cZ', 10))) bad.push('#cZ');
+      if (v('#cC', 80).length < 2) bad.push('#cC');
+      $$('#addr input').forEach(i => i.classList.remove('bad'));
+      if (bad.length) { bad.forEach(id => $(id).classList.add('bad')); $(bad[0]).focus(); return toast(t('e_address'), 1); }
+    }
     if (!$('#cA').checked) return toast(t('e_agree'), 1);
     if (!allow('order', 4, 120)) return;
     let sched = '';
@@ -594,11 +606,17 @@ const STEPS_D = ['new', 'preparing', 'ready', 'on_way', 'delivered'], STEPS_P = 
 const STEP_IC = { new: 'inbox', preparing: 'chef', ready: 'check', on_way: 'truck', delivered: 'home', picked_up: 'bag' };
 function qrSvg(text) { const q = qrcode(0, 'M'); q.addData(text); q.make(); return q.createSvgTag({ cellSize: 6, margin: 2, scalable: true }); }
 let trackTimer = null;
+function ago(ts) {
+  const m = Math.max(0, Math.round((Date.now() - new Date(ts).getTime()) / 60000));
+  if (!ts || isNaN(m)) return '';
+  if (m < 1) return S.lang === 'ar' ? 'هلق' : 'gerade eben';
+  return S.lang === 'ar' ? `قبل ${m} دقيقة` : `vor ${m} Min.`;
+}
 async function vTrack(token) {
   clearInterval(trackTimer);
   if (!/^[0-9a-f-]{36}$/i.test(token || '')) { location.hash = '#/'; return; }
   const draw = async (first) => {
-    const { data: o, error } = await sb.rpc('track_order', { t: token });
+    const { data: o, error } = await anon().rpc('track_order', { t: token });
     if (location.hash.indexOf(token) < 0) { clearInterval(trackTimer); return; }
     if (error || !o) { if (first) page(`<div class="empty">${ic('alert')}<p>${esc(error ? errMsg(error) : t('err'))}</p></div>`, { noBar: 1 }); return; }
     if (!first && draw.last === JSON.stringify(o)) return; draw.last = JSON.stringify(o);
@@ -611,10 +629,11 @@ async function vTrack(token) {
     page(`<div class="card" style="text-align:center"><div class="note">${esc(t('orderno'))}</div><div class="big">#${+o.id}</div>
       <div class="note">${fmtDate(o.created_at)}${o.scheduled_at ? ' · ' + ic('clock', 's') + ' ' + fmtDate(o.scheduled_at) : ''}</div>
       ${o.status === 'cancelled' ? `<div class="warnbox" style="justify-content:center">${esc(t('st_cancelled'))}</div>` : `<div class="steps">${steps.map((s, i) => `<div class="stp ${i <= idx ? 'on' : ''}"><i>${ic(STEP_IC[s], 's')}</i>${esc(t('st_' + s))}</div>`).join('')}</div>`}
+      ${o.handover_code && !done && o.status !== 'cancelled' ? `<div class="hcode"><div class="note">${esc(o.mode === 'delivery' ? t('code_d') : t('code_p'))}</div><b dir="ltr">${esc(String(o.handover_code).split('').join(' '))}</b></div>` : ''}
       ${o.mode === 'pickup' && !done && o.status !== 'cancelled' ? `<div class="note" style="margin-top:12px">${esc(t('showqr'))}</div><div class="qr">${qrSvg('SO:' + o.token)}</div>` : ''}
       ${!done && o.status !== 'cancelled' ? `<div class="note">${esc(t('cancelnote'))}</div>` : ''}</div>
      ${o.mode === 'delivery' && o.driver_name ? `<div class="card"><h3>${ic('truck')} ${esc(t('driver'))}: ${esc(o.driver_name)}</h3>${o.driver_phone ? `<a class="btn s o" href="tel:${esc(o.driver_phone)}">${ic('phone', 's')} ${esc(o.driver_phone)}</a>` : ''}
-       ${o.status === 'on_way' && isFinite(lat) && isFinite(lng) && lat ? `<iframe class="map" title="Karte" style="margin-top:12px" src="https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01},${lat - 0.006},${lng + 0.01},${lat + 0.006}&layer=mapnik&marker=${lat},${lng}"></iframe>` : ''}</div>` : ''}
+       ${o.status === 'on_way' ? (isFinite(lat) && isFinite(lng) && lat ? `<iframe class="map" title="Karte" loading="lazy" style="margin-top:12px" src="https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01},${lat - 0.006},${lng + 0.01},${lat + 0.006}&layer=mapnik&marker=${lat},${lng}"></iframe><div class="note" style="margin-top:6px">${esc(t('posat'))} ${esc(ago(o.driver_pos_at))}</div>` : `<div class="note" style="margin-top:10px">${ic('clock', 's')} ${esc(t('posnone'))}</div>`) : ''}</div>` : ''}
      ${done ? shops.filter(sid => !o.reviews.includes(sid)).map(sid => `<div class="card rv" data-s="${esc(sid)}"><h3>${esc(t('rate'))} ${esc(L(shopById(sid) || {}, 'name'))}?</h3>
         <div class="stars">${[1, 2, 3, 4, 5].map(n => `<span data-n="${n}" role="button" aria-label="${n}">${ic('star')}</span>`).join('')}</div><input type="text" maxlength="300" placeholder="${esc(t('comment'))}" style="margin-top:10px"><button class="btn s" style="margin-top:10px">${esc(t('send'))}</button></div>`).join('') : ''}
      ${o.payment === 'transfer' && !o.paid && o.status !== 'cancelled' ? bankBox(o) : ''}
@@ -682,31 +701,31 @@ function invoiceHtml(o) {
   const gsum = Object.values(gross).reduce((a, b) => a + b, 0);
   if (+o.discount && gsum) Object.keys(gross).forEach(v => { gross[v] -= (+o.discount) * gross[v] / gsum; });
   let pos = 0;
-  const rows = Object.keys(byShop).map(sid => `<tr class="grp"><td colspan="6">${esc((shopById(sid) || {}).name_de || sid)} · ${esc((shopById(sid) || {}).name_ar || '')}</td></tr>` + byShop[sid].map(i => {
+  const rows = Object.keys(byShop).map(sid => `<tr class="grp"><td colspan="6"><span class="bi"><span>${esc((shopById(sid) || {}).name_de || sid)}</span><span class="ar" dir="rtl">${esc((shopById(sid) || {}).name_ar || '')}</span></span></td></tr>` + byShop[sid].map(i => {
     pos++; const q = +(i.final_qty || i.qty);
     const unit = i.unit === 'kg' ? de(i.unit_price) + ' /kg' : de(+i.line_total / (q || 1));
     const opts = (i.options || []).map(x => x.de || x.ar).join(', ');
-    return `<tr><td>${pos}</td><td><b>${esc(i.name_de)}</b><div class="ar">${esc(i.name_ar)}</div>${opts ? `<div class="sm">${esc(opts)}</div>` : ''}${i.cake ? `<div class="sm">Termin ${esc(i.cake.date)}${i.cake.text ? ' · „' + esc(i.cake.text) + '“' : ''}</div>` : ''}</td>
+    return `<tr><td>${pos}</td><td><b>${esc(i.name_de)}</b><div class="ar" dir="rtl">${esc(i.name_ar)}</div>${opts ? `<div class="sm">${esc(opts)}</div>` : ''}${i.cake ? `<div class="sm">Termin ${esc(i.cake.date)}${i.cake.text ? ' · „' + esc(i.cake.text) + '“' : ''}</div>` : ''}</td>
       <td class="n">${i.unit === 'kg' ? q.toLocaleString('de-DE', { maximumFractionDigits: 3 }) + ' kg' : q}</td><td class="n">${unit}</td>${ku ? '' : `<td class="n">${+i.vat} %</td>`}<td class="n">${de(i.line_total)}</td></tr>`;
   }).join('')).join('');
   const vatRows = Object.keys(gross).sort().map(v => { const g = r2(gross[v]); const net = r2(g / (1 + v / 100)); return `<tr><td>${+v} %</td><td class="n">${de(net)}</td><td class="n">${de(r2(g - net))}</td><td class="n">${de(g)}</td></tr>`; }).join('');
   const PAYDE = { cash: 'Barzahlung bei Übergabe', card: 'EC-Karte bei Übergabe', paypal: 'PayPal', transfer: 'Überweisung' };
   return `<article class="inv">
-   <header class="inv-h"><img src="logo-dark.png" alt="Stein & Olive"><div class="inv-t"><h1>Rechnung <span>فاتورة</span></h1>
+   <header class="inv-h"><img src="logo-dark.png" alt="Stein & Olive"><div class="inv-t"><h1 class="bi"><span>Rechnung</span><span class="ar" dir="rtl">فاتورة</span></h1>
      <table class="kv"><tr><td>Rechnungs-Nr.</td><td>SO-${+o.id}</td></tr><tr><td>Datum</td><td>${new Date(o.created_at).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}</td></tr>
      <tr><td>Leistungsdatum</td><td>${new Date(o.scheduled_at || o.created_at).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}</td></tr><tr><td>Art</td><td>${o.mode === 'delivery' ? 'Lieferung' : 'Abholung'}</td></tr></table></div></header>
-   <section class="inv-p"><div><div class="lb">Verkäufer · البائع</div><b>${esc(s.name || 'Stein & Olive by Karam')}</b><br>${s.owner ? 'Inh. ' + esc(s.owner) + '<br>' : ''}${esc(s.address || '')}${s.phone ? '<br>Tel. ' + esc(s.phone) : ''}${s.email ? '<br>' + esc(s.email) : ''}
+   <section class="inv-p"><div><div class="lb"><span class="bi"><span>Verkäufer</span><span class="ar" dir="rtl">البائع</span></span></div><b>${esc(s.name || 'Stein & Olive by Karam')}</b><br>${s.owner ? 'Inh. ' + esc(s.owner) + '<br>' : ''}${esc(s.address || '')}${s.phone ? '<br>Tel. ' + esc(s.phone) : ''}${s.email ? '<br>' + esc(s.email) : ''}
        ${s.vat_id ? '<br>USt-IdNr. ' + esc(s.vat_id) : ''}${s.tax_id ? '<br>St.-Nr. ' + esc(s.tax_id) : ''}</div>
-     <div><div class="lb">Kunde · الزبون</div><b>${esc(o.customer_name)}</b>${o.mode === 'delivery' ? '<br>' + esc(o.street) + '<br>' + esc(o.plz) + ' ' + esc(o.city) : ''}${o.phone ? '<br>Tel. ' + esc(o.phone) : ''}</div></section>
-   <table class="inv-i"><thead><tr><th>Pos.</th><th>Artikel · المنتج</th><th class="n">Menge</th><th class="n">Einzelpreis</th>${ku ? '' : '<th class="n">MwSt</th>'}<th class="n">Betrag</th></tr></thead><tbody>${rows}</tbody></table>
+     <div><div class="lb"><span class="bi"><span>Kunde</span><span class="ar" dir="rtl">الزبون</span></span></div><b>${esc(o.customer_name)}</b>${o.mode === 'delivery' ? '<br>' + esc(o.street) + '<br>' + esc(o.plz) + ' ' + esc(o.city) : ''}${o.phone ? '<br>Tel. ' + esc(o.phone) : ''}</div></section>
+   <table class="inv-i"><thead><tr><th>Pos.</th><th><span class="bi"><span>Artikel</span><span class="ar" dir="rtl">المنتج</span></span></th><th class="n">Menge</th><th class="n">Einzelpreis</th>${ku ? '' : '<th class="n">MwSt</th>'}<th class="n">Betrag</th></tr></thead><tbody>${rows}</tbody></table>
    <div class="inv-s"><table>
      <tr><td>Zwischensumme</td><td class="n">${de(o.subtotal)}</td></tr>${+o.pfand ? `<tr><td>Pfand</td><td class="n">${de(o.pfand)}</td></tr>` : ''}
      ${o.mode === 'delivery' ? `<tr><td>Liefergebühr</td><td class="n">${de(o.delivery_fee)}</td></tr>` : ''}${+o.discount ? `<tr><td>Rabatt ${esc(o.coupon || '')}</td><td class="n">−${de(o.discount)}</td></tr>` : ''}
-     <tr class="tot"><td>Gesamtbetrag · المجموع</td><td class="n">${de(o.total)}</td></tr></table></div>
+     <tr class="tot"><td><span class="bi"><span>Gesamtbetrag</span><span class="ar" dir="rtl">المجموع</span></span></td><td class="n">${de(o.total)}</td></tr></table></div>
    ${ku ? '<p class="sm">Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.</p>' : `<table class="inv-v"><thead><tr><th>MwSt-Satz</th><th class="n">Netto</th><th class="n">MwSt</th><th class="n">Brutto</th></tr></thead><tbody>${vatRows}</tbody></table><p class="sm">Alle Preise enthalten die gesetzliche Mehrwertsteuer.</p>`}
-   <section class="inv-f"><div><div class="lb">Zahlung · الدفع</div>${esc(PAYDE[o.payment] || o.payment)} · <b>${o.paid ? 'bezahlt' : 'offen'}</b>
+   <section class="inv-f"><div><div class="lb"><span class="bi"><span>Zahlung</span><span class="ar" dir="rtl">الدفع</span></span></div>${esc(PAYDE[o.payment] || o.payment)} · <b>${o.paid ? 'bezahlt' : 'offen'}</b>
      ${o.payment === 'transfer' && !o.paid && s.bank_iban ? `<br>${esc(s.bank_holder || s.name)} · IBAN ${esc(s.bank_iban)}${s.bank_bic ? ' · BIC ' + esc(s.bank_bic) : ''}<br>Verwendungszweck: SO-${+o.id}` : ''}</div>
-     <div class="thanks">Vielen Dank für deinen Einkauf.<br><span class="ar">شكراً لأنك طلبت من بيت كرم</span></div></section>
+     <div class="thanks"><div>Vielen Dank für deinen Einkauf.</div><div class="ar" dir="rtl">شكراً لأنك طلبت من بيت كرم</div></div></section>
   </article>`;
 }
 async function vInvoice(token) {
@@ -884,6 +903,7 @@ async function route() {
   const ss = $('.ssheet'); if (ss) { ss.remove(); document.body.style.overflow = ''; }
   if (window.Admin && Admin.leave) Admin.leave(r);
   window.scrollTo(0, 0);
+  page.nav = true;
   if (r === 'login' || r === 'admin' || r === 'driver') return window.Admin.route(r, a, h.split('/').slice(1));
   if (r === 'shop') return vShop(decodeURIComponent(a || ''));
   if (r === 'cart') return vCart();
