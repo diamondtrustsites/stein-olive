@@ -301,6 +301,27 @@ body.tvmode{background:#15180F;color:#EEEADF}
 .tv .ti .p{font-size:3.2vh;color:#C9B590;font-weight:700}
 .tv .cat{grid-column:1/-1;font-size:3vh;color:#C9B590;margin-top:1vh}
 
+/* invoice */
+.inv{background:#fff;color:#1E2219;max-width:780px;margin:0 auto;padding:36px 34px;border-radius:12px;box-shadow:var(--shadow);font-size:14px;direction:ltr;text-align:left}
+.inv .ar{direction:rtl;color:#77766B;font-size:13px}.inv .sm{color:#77766B;font-size:12px}
+.inv-h{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;border-bottom:2px solid #1E2219;padding-bottom:18px}
+.inv-h img{width:150px}
+.inv-t h1{font-size:26px;margin:0 0 8px;text-align:right}.inv-t h1 span{font-size:16px;color:#77766B;font-weight:500;margin-left:6px}
+.inv .kv td{padding:1px 0 1px 14px;font-size:13px}.inv .kv td:first-child{color:#77766B}
+.inv-p{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:20px 0;line-height:1.5}
+.inv .lb{font-size:12px;color:#77766B;margin-bottom:4px}
+.inv table{border-collapse:collapse;width:100%}
+.inv-i th{font-size:12px;color:#77766B;font-weight:600;text-align:left;border-bottom:1px solid #1E2219;padding:8px 6px}
+.inv-i td{padding:9px 6px;border-bottom:1px solid #E4DED2;vertical-align:top}
+.inv-i tr.grp td{background:#F3F0E9;font-weight:600;font-size:13px;padding:6px}
+.inv .n{text-align:right;white-space:nowrap}
+.inv-s{display:flex;justify-content:flex-end;margin-top:12px}.inv-s table{width:min(320px,100%)}.inv-s td{padding:4px 6px}
+.inv-s tr.tot td{border-top:2px solid #1E2219;font-weight:700;font-size:17px;padding-top:9px}
+.inv-v{margin-top:18px;width:min(420px,100%)!important}.inv-v th{font-size:12px;color:#77766B;text-align:left;border-bottom:1px solid #D8D2C5;padding:5px 6px}.inv-v td{padding:5px 6px;border-bottom:1px solid #EEE9DF}
+.inv-f{display:grid;grid-template-columns:1.4fr 1fr;gap:20px;margin-top:24px;border-top:1px solid #D8D2C5;padding-top:16px}
+.inv .thanks{text-align:right;color:#4A4C42}
+@media(max-width:600px){.inv{padding:20px 16px}.inv-h{flex-direction:column}.inv-t h1{text-align:left}.inv-p,.inv-f{grid-template-columns:1fr}.inv .thanks{text-align:left}.inv-i th:nth-child(1),.inv-i tr:not(.grp) td:nth-child(1){display:none}}
+@media print{.inv{box-shadow:none;padding:0;max-width:none}.wrap{padding:0}}
 @media print{.top,.foot,.cbar,.tabbar,.noprint{display:none!important}body{background:#fff;color:#000;padding:0}.card{border:0}}
 .receipt{background:#fff;color:#111;max-width:360px;margin:auto;padding:16px;border-radius:8px;font-size:14px}
 .receipt .sum.tot{color:#111}

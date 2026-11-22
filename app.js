@@ -55,7 +55,7 @@ const T = {
   cakedate:'تاريخ الاستلام', caketext:'الكتابة على القالب', basket:'اختار محتوى السلة', basketmin:'اختار منتج واحد على الأقل',
   empty:'سلتك فاضية', emptyhint:'اختار من المحلات وضيف للسلة. بتقدر تطلب من كل المحلات بطلب واحد.', subtotal:'المجموع الفرعي', pfand:'Pfand', delivery:'التوصيل', discount:'الخصم', total:'المجموع', toshop:'تصفّح المحلات',
   pickup:'استلام', deliv:'توصيل', name:'الاسم', phone:'رقم الهاتف', email:'الإيميل', emailopt:'الإيميل (اختياري)', street:'الشارع ورقم البيت', plz:'الرمز البريدي', city:'المدينة',
-  addrnote:'ملاحظة للسائق (طابق، جرس…)', when:'وقت الطلب', asap:'بأسرع وقت', later:'وقت محدد', payment:'الدفع', cash:'كاش عند الاستلام', card:'بطاقة EC عند الاستلام', paypal:'PayPal',
+  addrnote:'ملاحظة للسائق (طابق، جرس…)', when:'وقت الطلب', asap:'بأسرع وقت', later:'وقت محدد', payment:'الدفع', cash:'كاش عند الاستلام', card:'بطاقة EC عند الاستلام', paypal:'PayPal', transfer:'تحويل بنكي', invoice:'الفاتورة', paid:'مدفوع', unpaid:'غير مدفوع بعد', banktitle:'ادفع بالتحويل البنكي', bankhint:'امسح الكود بتطبيق البنك (Sparkasse وغيره) وبيتعبى التحويل لحاله، أو انسخ المعلومات.', holder:'صاحب الحساب', amount:'المبلغ', purpose:'سبب التحويل', copied:'انتسخ', transferhint:'بعد ما ترسل الطلب بتطلعلك معلومات الحساب البنكي.',
   coupon:'كود الخصم', ordernote:'ملاحظة على الطلب', place:'أرسل الطلب', minorder:'الحد الأدنى', zoneok:'منوصل لعندك', zonebad:'ما منوصل لهالرمز البريدي حالياً',
   track:'تتبع الطلب', myorders:'طلباتي', st_new:'تم الاستلام', st_preparing:'قيد التحضير', st_ready:'جاهز', st_on_way:'بالطريق', st_delivered:'تم التوصيل', st_picked_up:'تم الاستلام', st_cancelled:'ملغي',
   showqr:'ورجي هالكود بالمحل وقت الاستلام', driver:'السائق', rate:'كيف كان', thanks:'شكراً، وصل تقييمك', receipt:'الفاتورة', print:'طباعة', staff:'دخول الموظفين',
@@ -79,7 +79,7 @@ const T = {
   cakedate:'Abholdatum', caketext:'Aufschrift auf der Torte', basket:'Korb zusammenstellen', basketmin:'Bitte mindestens ein Produkt wählen',
   empty:'Dein Warenkorb ist leer', emptyhint:'Wähle in den Geschäften aus. Du kannst aus allen Geschäften in einer Bestellung bestellen.', subtotal:'Zwischensumme', pfand:'Pfand', delivery:'Lieferung', discount:'Rabatt', total:'Gesamt', toshop:'Geschäfte ansehen',
   pickup:'Abholung', deliv:'Lieferung', name:'Name', phone:'Telefon', email:'E-Mail', emailopt:'E-Mail (optional)', street:'Straße und Hausnummer', plz:'PLZ', city:'Ort',
-  addrnote:'Hinweis für den Fahrer (Etage, Klingel …)', when:'Zeitpunkt', asap:'So schnell wie möglich', later:'Uhrzeit wählen', payment:'Zahlung', cash:'Bar bei Übergabe', card:'EC-Karte bei Übergabe', paypal:'PayPal',
+  addrnote:'Hinweis für den Fahrer (Etage, Klingel …)', when:'Zeitpunkt', asap:'So schnell wie möglich', later:'Uhrzeit wählen', payment:'Zahlung', cash:'Bar bei Übergabe', card:'EC-Karte bei Übergabe', paypal:'PayPal', transfer:'Überweisung', invoice:'Rechnung', paid:'Bezahlt', unpaid:'Noch nicht bezahlt', banktitle:'Per Überweisung bezahlen', bankhint:'Scanne den Code mit deiner Banking-App (z. B. Sparkasse), dann ist die Überweisung schon ausgefüllt. Oder kopiere die Daten.', holder:'Empfänger', amount:'Betrag', purpose:'Verwendungszweck', copied:'Kopiert', transferhint:'Nach dem Absenden siehst du die Bankverbindung.',
   coupon:'Gutscheincode', ordernote:'Anmerkung zur Bestellung', place:'Zahlungspflichtig bestellen', minorder:'Mindestbestellwert', zoneok:'Wir liefern zu dir', zonebad:'Für diese PLZ liefern wir derzeit nicht',
   track:'Bestellung verfolgen', myorders:'Meine Bestellungen', st_new:'Eingegangen', st_preparing:'In Zubereitung', st_ready:'Fertig', st_on_way:'Unterwegs', st_delivered:'Geliefert', st_picked_up:'Abgeholt', st_cancelled:'Storniert',
   showqr:'Zeige diesen Code bei der Abholung', driver:'Fahrer', rate:'Wie war', thanks:'Danke für deine Bewertung', receipt:'Beleg', print:'Drucken', staff:'Personal-Login',
@@ -511,9 +511,9 @@ async function vCheckout() {
   const st = { mode: saved.mode && ((saved.mode === 'delivery' && canDel) || (saved.mode === 'pickup' && canPick)) ? saved.mode : (canDel ? 'delivery' : 'pickup'), when: 'asap', pay: 'cash' };
   const allOpen = cartShops().every(id => isOpenNow(shopById(id)));
   if (!allOpen) st.when = 'later';
-  const payOpts = [['cash', pay.cash !== false], ['card', !!pay.card], ['paypal', !!pay.paypal && !!pay.paypal_me]].filter(x => x[1]).map(x => x[0]);
+  const payOpts = [['cash', pay.cash !== false], ['card', !!pay.card], ['transfer', !!pay.transfer && !!s.bank_iban], ['paypal', !!pay.paypal && !!pay.paypal_me]].filter(x => x[1]).map(x => x[0]);
   if (!payOpts.includes(st.pay)) st.pay = payOpts[0];
-  const payIc = { cash: 'receipt', card: 'tag', paypal: 'globe' };
+  const payIc = { cash: 'receipt', card: 'tag', paypal: 'globe', transfer: 'store' };
   page(`<div class="sec" style="margin-top:6px"><h2>${esc(t('checkout'))}</h2></div>
    ${c ? `<div class="infobox">${ic('user', 's')}<span>${esc(t('orderas'))} <b>${esc(c.name || c.email)}</b></span></div>` : `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:200px">${esc(t('loginhint'))}</span><a class="btn s o" href="#/account?next=checkout">${esc(t('login'))}</a></div>`}
    ${canDel && canPick ? `<div class="seg" id="mode"><button data-v="delivery">${ic('truck', 's')} ${esc(t('deliv'))}</button><button data-v="pickup">${ic('store', 's')} ${esc(t('pickup'))}</button></div>` : ''}
@@ -530,7 +530,7 @@ async function vCheckout() {
     ${allOpen ? `<div class="seg" id="when"><button data-v="asap">${esc(t('asap'))}</button><button data-v="later">${esc(t('later'))}</button></div>` : ''}
     <input type="datetime-local" id="cT" style="margin-top:10px" hidden></div>
    <div class="card"><h3>${esc(t('payment'))}</h3>${payOpts.map(v => `<label class="opt"><input type="radio" name="pay" value="${v}" ${v === st.pay ? 'checked' : ''}>${ic(payIc[v])}<span>${esc(t(v))}</span></label>`).join('')}
-    <div class="note" id="ppn" hidden>${esc(t('paypalnote'))}</div></div>
+    <div class="note" id="ppn" hidden>${esc(t('paypalnote'))}</div><div class="note" id="trn" hidden>${esc(t('transferhint'))}</div></div>
    <div class="card"><div class="row"><label class="f" style="margin-top:0"><span>${esc(t('coupon'))}</span><input type="text" id="cK" maxlength="40" style="text-transform:uppercase"></label><span></span></div>
     <label class="f" style="margin-bottom:0"><span>${esc(t('ordernote'))}</span><textarea id="cO" maxlength="400"></textarea></label></div>
    <div class="card" id="tots"></div>
@@ -542,7 +542,7 @@ async function vCheckout() {
   const segSet = (id, v) => $$('#' + id + ' button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   const draw = () => {
     segSet('mode', st.mode); segSet('when', st.when);
-    $('#addr').hidden = st.mode !== 'delivery'; $('#cT').hidden = st.when !== 'later'; $('#ppn').hidden = st.pay !== 'paypal';
+    $('#addr').hidden = st.mode !== 'delivery'; $('#cT').hidden = st.when !== 'later'; $('#ppn').hidden = st.pay !== 'paypal'; $('#trn').hidden = st.pay !== 'transfer';
     const tot = cartTotals(); let fee = 0; let zi = '';
     if (st.mode === 'delivery' && $('#cZ').value.length >= 5) {
       const z = zoneFor($('#cZ').value);
@@ -610,9 +610,10 @@ async function vTrack(token) {
        ${o.status === 'on_way' && isFinite(lat) && isFinite(lng) && lat ? `<iframe class="map" title="Karte" style="margin-top:12px" src="https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01},${lat - 0.006},${lng + 0.01},${lat + 0.006}&layer=mapnik&marker=${lat},${lng}"></iframe>` : ''}</div>` : ''}
      ${done ? shops.filter(sid => !o.reviews.includes(sid)).map(sid => `<div class="card rv" data-s="${esc(sid)}"><h3>${esc(t('rate'))} ${esc(L(shopById(sid) || {}, 'name'))}?</h3>
         <div class="stars">${[1, 2, 3, 4, 5].map(n => `<span data-n="${n}" role="button" aria-label="${n}">${ic('star')}</span>`).join('')}</div><input type="text" maxlength="300" placeholder="${esc(t('comment'))}" style="margin-top:10px"><button class="btn s" style="margin-top:10px">${esc(t('send'))}</button></div>`).join('') : ''}
+     ${o.payment === 'transfer' && !o.paid && o.status !== 'cancelled' ? bankBox(o) : ''}
      <div class="card" id="rcpt">${receiptHtml(o)}</div>
-     <div class="acts noprint"><button class="btn o" id="prB">${ic('print', 's')} ${esc(t('print'))}</button>${dw ? `<a class="btn o" target="_blank" rel="noopener noreferrer" href="https://wa.me/${esc(dw)}?text=${encodeURIComponent((S.lang === 'ar' ? 'مرحبا، بخصوص طلبي رقم #' : 'Hallo, zu meiner Bestellung #') + o.id)}">${ic('chat', 's')} ${esc(t('whatsapp'))}</a>` : ''}<a class="btn o" href="#/">${esc(t('home'))}</a></div>`, { noBar: 1 });
-    $('#prB').onclick = () => window.print();
+     <div class="acts noprint"><a class="btn" href="#/invoice/${esc(o.token)}">${ic('receipt', 's')} ${esc(t('invoice'))}</a>${dw ? `<a class="btn o" target="_blank" rel="noopener noreferrer" href="https://wa.me/${esc(dw)}?text=${encodeURIComponent((S.lang === 'ar' ? 'مرحبا، بخصوص طلبي رقم #' : 'Hallo, zu meiner Bestellung #') + o.id)}">${ic('chat', 's')} ${esc(t('whatsapp'))}</a>` : ''}<a class="btn o" href="#/">${esc(t('home'))}</a></div>`, { noBar: 1 });
+    $$('[data-copy]').forEach(b => b.onclick = () => navigator.clipboard.writeText(b.dataset.copy).then(() => toast(t('copied'))));
     $$('.rv').forEach(card => { let n = 0; const sp = $$('.stars span', card);
       sp.forEach(s => s.onclick = () => { n = +s.dataset.n; sp.forEach(x => x.classList.toggle('on', +x.dataset.n <= n)); });
       $('button', card).onclick = async () => { if (!n) return; const { error } = await sb.rpc('add_review', { p_token: token, p_shop: card.dataset.s, p_stars: n, p_text: clean($('input', card).value, 300), p_name: String(o.customer_name || '').split(' ')[0] });
@@ -637,8 +638,76 @@ function receiptHtml(o) {
    ${+o.discount ? `<div class="sum"><span>${esc(t('discount'))} ${esc(o.coupon || '')}</span><span>−${money(o.discount)}</span></div>` : ''}
    <div class="sum tot"><span>${esc(t('total'))}</span><span>${money(o.total)}</span></div>
    <div class="note">${Object.keys(vat).map(v => `inkl. ${+v}% MwSt: ${money(vat[v] - vat[v] / (1 + v / 100))}`).join(' · ')}</div>
-   <div class="note">${esc(t('payment'))}: ${esc(t(o.payment))} · ${esc(t(o.mode === 'delivery' ? 'deliv' : 'pickup'))}</div>
+   <div class="note">${esc(t('payment'))}: ${esc(t(o.payment))}${o.paid ? ' · ' + esc(t('paid')) : o.payment === 'transfer' ? ' · ' + esc(t('unpaid')) : ''} · ${esc(t(o.mode === 'delivery' ? 'deliv' : 'pickup'))}</div>
    <div class="note" style="margin-top:6px">${esc(s.name || 'Stein & Olive by Karam')}, ${esc(s.address || '')}${s.vat_id ? ' · USt-IdNr. ' + esc(s.vat_id) : s.tax_id ? ' · St.-Nr. ' + esc(s.tax_id) : ''}</div>`;
+}
+
+
+/* ---------- bank transfer (GiroCode / EPC-QR) ---------- */
+function epcPayload(s, o) {
+  const clip = (v, n) => String(v || '').replace(/[\r\n]/g, ' ').slice(0, n);
+  return ['BCD', '002', '1', 'SCT', clip(s.bank_bic, 11), clip(s.bank_holder || s.name, 70), clip(String(s.bank_iban || '').replace(/\s/g, ''), 34), 'EUR' + (+o.total).toFixed(2), '', '', 'SO-' + o.id, ''].join('\n');
+}
+function bankBox(o) {
+  const s = S.settings; if (!s.bank_iban) return '';
+  const iban = String(s.bank_iban).replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim();
+  const cp = (v) => `<button class="btn s o" data-copy="${esc(v)}" aria-label="copy">${ic('copy', 's')}</button>`;
+  return `<div class="card"><h3>${ic('store')} ${esc(t('banktitle'))}</h3><p class="note" style="margin-top:0">${esc(t('bankhint'))}</p>
+    <div class="qr" style="width:190px">${qrSvg(epcPayload(s, o))}</div>
+    <div class="li"><div class="t"><small>${esc(t('holder'))}</small><b>${esc(s.bank_holder || s.name)}</b></div></div>
+    <div class="li"><div class="t"><small>IBAN</small><b dir="ltr">${esc(iban)}</b></div>${cp(String(s.bank_iban).replace(/\s/g, ''))}</div>
+    ${s.bank_bic ? `<div class="li"><div class="t"><small>BIC</small><b dir="ltr">${esc(s.bank_bic)}</b></div></div>` : ''}
+    <div class="li"><div class="t"><small>${esc(t('amount'))}</small><b>${money(o.total)}</b></div></div>
+    <div class="li"><div class="t"><small>${esc(t('purpose'))}</small><b dir="ltr">SO-${+o.id}</b></div>${cp('SO-' + o.id)}</div></div>`;
+}
+
+/* ---------- invoice (Rechnung) ---------- */
+function invoiceHtml(o) {
+  const s = S.settings; const ku = !!s.kleinunternehmer;
+  const r2 = n => Math.round(n * 100) / 100;
+  const de = n => (Math.round((+n || 0) * 100) / 100).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  const items = (o.items || []).filter(i => i.status !== 'rejected');
+  const byShop = {}; items.forEach(i => (byShop[i.shop_id] = byShop[i.shop_id] || []).push(i));
+  const gross = {}; const add = (v, amt) => { if (amt) gross[v] = (gross[v] || 0) + amt; };
+  items.forEach(i => add(+i.vat, +i.line_total));
+  add(19, +o.pfand || 0);
+  if (o.mode === 'delivery') add(+(s.delivery_vat || 7), +o.delivery_fee || 0);
+  const gsum = Object.values(gross).reduce((a, b) => a + b, 0);
+  if (+o.discount && gsum) Object.keys(gross).forEach(v => { gross[v] -= (+o.discount) * gross[v] / gsum; });
+  let pos = 0;
+  const rows = Object.keys(byShop).map(sid => `<tr class="grp"><td colspan="6">${esc((shopById(sid) || {}).name_de || sid)} · ${esc((shopById(sid) || {}).name_ar || '')}</td></tr>` + byShop[sid].map(i => {
+    pos++; const q = +(i.final_qty || i.qty);
+    const unit = i.unit === 'kg' ? de(i.unit_price) + ' /kg' : de(+i.line_total / (q || 1));
+    const opts = (i.options || []).map(x => x.de || x.ar).join(', ');
+    return `<tr><td>${pos}</td><td><b>${esc(i.name_de)}</b><div class="ar">${esc(i.name_ar)}</div>${opts ? `<div class="sm">${esc(opts)}</div>` : ''}${i.cake ? `<div class="sm">Termin ${esc(i.cake.date)}${i.cake.text ? ' · „' + esc(i.cake.text) + '“' : ''}</div>` : ''}</td>
+      <td class="n">${i.unit === 'kg' ? q.toLocaleString('de-DE', { maximumFractionDigits: 3 }) + ' kg' : q}</td><td class="n">${unit}</td>${ku ? '' : `<td class="n">${+i.vat} %</td>`}<td class="n">${de(i.line_total)}</td></tr>`;
+  }).join('')).join('');
+  const vatRows = Object.keys(gross).sort().map(v => { const g = r2(gross[v]); const net = r2(g / (1 + v / 100)); return `<tr><td>${+v} %</td><td class="n">${de(net)}</td><td class="n">${de(r2(g - net))}</td><td class="n">${de(g)}</td></tr>`; }).join('');
+  const PAYDE = { cash: 'Barzahlung bei Übergabe', card: 'EC-Karte bei Übergabe', paypal: 'PayPal', transfer: 'Überweisung' };
+  return `<article class="inv">
+   <header class="inv-h"><img src="logo-dark.png" alt="Stein & Olive"><div class="inv-t"><h1>Rechnung <span>فاتورة</span></h1>
+     <table class="kv"><tr><td>Rechnungs-Nr.</td><td>SO-${+o.id}</td></tr><tr><td>Datum</td><td>${new Date(o.created_at).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}</td></tr>
+     <tr><td>Leistungsdatum</td><td>${new Date(o.scheduled_at || o.created_at).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}</td></tr><tr><td>Art</td><td>${o.mode === 'delivery' ? 'Lieferung' : 'Abholung'}</td></tr></table></div></header>
+   <section class="inv-p"><div><div class="lb">Verkäufer · البائع</div><b>${esc(s.name || 'Stein & Olive by Karam')}</b><br>${s.owner ? 'Inh. ' + esc(s.owner) + '<br>' : ''}${esc(s.address || '')}${s.phone ? '<br>Tel. ' + esc(s.phone) : ''}${s.email ? '<br>' + esc(s.email) : ''}
+       ${s.vat_id ? '<br>USt-IdNr. ' + esc(s.vat_id) : ''}${s.tax_id ? '<br>St.-Nr. ' + esc(s.tax_id) : ''}</div>
+     <div><div class="lb">Kunde · الزبون</div><b>${esc(o.customer_name)}</b>${o.mode === 'delivery' ? '<br>' + esc(o.street) + '<br>' + esc(o.plz) + ' ' + esc(o.city) : ''}${o.phone ? '<br>Tel. ' + esc(o.phone) : ''}</div></section>
+   <table class="inv-i"><thead><tr><th>Pos.</th><th>Artikel · المنتج</th><th class="n">Menge</th><th class="n">Einzelpreis</th>${ku ? '' : '<th class="n">MwSt</th>'}<th class="n">Betrag</th></tr></thead><tbody>${rows}</tbody></table>
+   <div class="inv-s"><table>
+     <tr><td>Zwischensumme</td><td class="n">${de(o.subtotal)}</td></tr>${+o.pfand ? `<tr><td>Pfand</td><td class="n">${de(o.pfand)}</td></tr>` : ''}
+     ${o.mode === 'delivery' ? `<tr><td>Liefergebühr</td><td class="n">${de(o.delivery_fee)}</td></tr>` : ''}${+o.discount ? `<tr><td>Rabatt ${esc(o.coupon || '')}</td><td class="n">−${de(o.discount)}</td></tr>` : ''}
+     <tr class="tot"><td>Gesamtbetrag · المجموع</td><td class="n">${de(o.total)}</td></tr></table></div>
+   ${ku ? '<p class="sm">Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.</p>' : `<table class="inv-v"><thead><tr><th>MwSt-Satz</th><th class="n">Netto</th><th class="n">MwSt</th><th class="n">Brutto</th></tr></thead><tbody>${vatRows}</tbody></table><p class="sm">Alle Preise enthalten die gesetzliche Mehrwertsteuer.</p>`}
+   <section class="inv-f"><div><div class="lb">Zahlung · الدفع</div>${esc(PAYDE[o.payment] || o.payment)} · <b>${o.paid ? 'bezahlt' : 'offen'}</b>
+     ${o.payment === 'transfer' && !o.paid && s.bank_iban ? `<br>${esc(s.bank_holder || s.name)} · IBAN ${esc(s.bank_iban)}${s.bank_bic ? ' · BIC ' + esc(s.bank_bic) : ''}<br>Verwendungszweck: SO-${+o.id}` : ''}</div>
+     <div class="thanks">Vielen Dank für deinen Einkauf.<br><span class="ar">شكراً لأنك طلبت من بيت كرم</span></div></section>
+  </article>`;
+}
+async function vInvoice(token) {
+  if (!/^[0-9a-f-]{36}$/i.test(token || '')) { location.hash = '#/'; return; }
+  const { data: o, error } = await sb.rpc('track_order', { t: token });
+  if (error || !o) { page(`<div class="empty">${esc(error ? errMsg(error) : t('err'))}</div>`, { noBar: 1 }); return; }
+  page(`<div class="acts noprint" style="margin-bottom:12px"><a class="btn o s" href="#/track/${esc(token)}">${ic(S.lang === 'ar' ? 'fwd' : 'back', 's')} ${esc(t('back'))}</a><button class="btn s" id="pr">${ic('print', 's')} ${esc(t('print'))}</button></div>${invoiceHtml(o)}`, { noBar: 1 });
+  $('#pr').onclick = () => window.print();
 }
 
 /* ---------- account ---------- */
@@ -770,6 +839,7 @@ async function route() {
   if (r === 'cart') return vCart();
   if (r === 'checkout') return vCheckout();
   if (r === 'track') return vTrack(a);
+  if (r === 'invoice') return vInvoice(a);
   if (r === 'orders') { location.hash = '#/account'; return; }
   if (r === 'account') return vAccount(a);
   if (r === 'impressum' || r === 'datenschutz' || r === 'agb') return vLegal(r);
@@ -787,5 +857,5 @@ async function start() {
 }
 
 window.App = { start, sb, S, t, L, LL, esc, money, fq, $, $$, toast, modal, closeModal, errMsg, loadData, fetchAll, shopById, prodById, page, setLang,
-  ALLERGENS, DAYS, fmtDate, qrSvg, receiptHtml, route, isOpenNow, uid, priceLabel, priceText, ic, shopIc, bgImg, safeUrl, clean, allow, waNum, DOMAIN: CFG.loginDomain };
+  ALLERGENS, DAYS, fmtDate, qrSvg, receiptHtml, invoiceHtml, route, isOpenNow, uid, priceLabel, priceText, ic, shopIc, bgImg, safeUrl, clean, allow, waNum, DOMAIN: CFG.loginDomain };
 })();

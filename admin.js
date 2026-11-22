@@ -8,7 +8,7 @@ const ST = { orders: [], drivers: [], seen: null, ch: null, poll: null, sound: l
 
 const STATUS = { new: ['جديد', 'Neu', 'warn'], preparing: ['قيد التحضير', 'In Zubereitung', 'be'], ready: ['جاهز', 'Fertig', 'ok'], on_way: ['بالطريق', 'Unterwegs', 'be'], delivered: ['تم التوصيل', 'Geliefert', 'ok'], picked_up: ['تم الاستلام', 'Abgeholt', 'ok'], cancelled: ['ملغي', 'Storniert', 'bad'], rejected: ['مرفوض', 'Abgelehnt', 'bad'] };
 const stPill = s => `<span class="pill ${STATUS[s][2]}">${esc(A(STATUS[s][0], STATUS[s][1]))}</span>`;
-const PAY = { cash: ['كاش', 'Bar'], card: ['بطاقة', 'Karte'], paypal: ['PayPal', 'PayPal'] };
+const PAY = { cash: ['كاش', 'Bar'], card: ['بطاقة', 'Karte'], paypal: ['PayPal', 'PayPal'], transfer: ['تحويل بنكي', 'Überweisung'] };
 const err = e => toast(App.errMsg(e), 1);
 
 /* ---------- auth ---------- */
@@ -184,7 +184,8 @@ function orderCard(o) {
       ${mine && act.length && ['new', 'preparing', 'ready'].includes(o.status) ? `<div class="acts" style="margin-top:8px">
         ${gst === 'new' ? `<button class="btn s w" data-ss="preparing" data-oid="${o.id}">‍ ${esc(A('بلّش التحضير', 'Zubereitung starten'))}</button>` : ''}
         ${gst !== 'ready' ? `<button class="btn s g" data-ss="ready" data-oid="${o.id}">${esc(A('جاهز', 'Fertig'))}</button>` : `<button class="btn s o" data-ss="preparing" data-oid="${o.id}">${esc(A('رجوع', 'Zurück'))}</button>`}</div>` : ''}</div>`; }).join('')}
-   <div class="sum" style="margin-top:6px"><span>${esc(A('المجموع', 'Summe'))} • ${esc(A(PAY[o.payment] ? PAY[o.payment][0] : o.payment, PAY[o.payment] ? PAY[o.payment][1] : o.payment))}${o.paid ? ' ✓' : ''}</span><b style="color:var(--beige)">${money(o.total)}</b></div>
+   <div class="sum" style="margin-top:6px"><span>${esc(A('المجموع', 'Summe'))} • ${esc(A(PAY[o.payment] ? PAY[o.payment][0] : o.payment, PAY[o.payment] ? PAY[o.payment][1] : o.payment))}${o.paid ? ' ✓' : ''}</span><b>${money(o.total)}</b></div>
+   ${o.payment === 'transfer' ? `<div class="acts" style="margin-top:4px"><span class="pill ${o.paid ? 'ok' : 'warn'}">${o.paid ? esc(A('التحويل وصل', 'Überweisung erhalten')) : esc(A('التحويل لسا ما وصل', 'Überweisung offen'))}</span><button class="btn s o" data-paid="${o.id}" data-v="${o.paid ? 0 : 1}">${o.paid ? esc(A('رجّعها غير مدفوعة', 'Als offen markieren')) : esc(A('وصل المبلغ', 'Als bezahlt markieren'))}</button></div>` : ''}
    ${o.mode === 'delivery' ? `<div class="note">${esc(A('السائق:', 'Fahrer:'))} ${drv ? esc(drv.name || drv.username) : o.driver_id ? '✓' : '—'}${o.cash_collected ? ' •  ' + esc(A('تم تحصيل الكاش', 'Bar kassiert')) : ''}</div>` : ''}
    <div class="acts noprint" style="margin-top:8px">
     ${o.mode === 'pickup' && o.status === 'ready' ? `<button class="btn s g" data-os="picked_up" data-oid="${o.id}">${esc(A('تم التسليم للزبون', 'An Kunde übergeben'))}</button>` : ''}
@@ -214,13 +215,11 @@ function bindOrderCards(root, refresh) {
   $$('[data-w]', root).forEach(b => b.onclick = () => { const v = parseFloat(String($(`[data-wq="${b.dataset.w}"]`, root).value).replace(',', '.')); if (!(v > 0)) return; run(sb.rpc('set_final_qty', { p_item: +b.dataset.w, p_qty: v })).then(() => toast(' ✓')); });
   $$('[data-drv]', root).forEach(s => s.onchange = () => run(sb.rpc('admin_assign_driver', { p_order: +s.dataset.drv, p_driver: s.value || null })));
   $$('[data-pr]', root).forEach(b => b.onclick = () => printOrder(ST.orders.find(x => x.id === +b.dataset.pr)));
+  $$('[data-paid]', root).forEach(b => b.onclick = () => run(sb.rpc('order_set_paid', { p_order: +b.dataset.paid, p_paid: b.dataset.v === '1' })));
 }
 function printOrder(o) {
   const asView = Object.assign({}, o, { items: o.order_items.map(i => Object.assign({}, i, { line_total: i.final_total != null ? i.final_total : i.line_total })) });
-  modal(`<button class="ib x noprint" data-close>✕</button><div class="receipt" id="rc"><div style="text-align:center"><img src="logo-dark.png" style="width:150px;margin:auto"></div>
-     <div style="text-align:center;font-size:22px;font-weight:700">#${o.id}</div><div style="text-align:center">${fmtDate(o.created_at)} • ${o.mode === 'delivery' ? 'Lieferung' : 'Abholung'}</div>
-     <div>${esc(o.customer_name)} • ${esc(o.phone)}${o.mode === 'delivery' ? '<br>' + esc(o.street) + ', ' + esc(o.plz) + ' ' + esc(o.city) : ''}</div><hr>${receiptHtml(asView)}</div>
-     <div class="acts noprint" style="margin-top:10px"><button class="btn full" id="prt">${ic('print', 's')} ${esc(A('طباعة', 'Drucken'))}</button></div>`);
+  modal(`<button class="ib x noprint" data-close>${ic('x')}</button><div class="acts noprint" style="margin-bottom:10px"><button class="btn s" id="prt">${ic('print', 's')} ${esc(A('طباعة', 'Drucken'))}</button></div>${App.invoiceHtml(asView)}`);
   $('#prt').onclick = () => window.print();
 }
 
@@ -775,17 +774,38 @@ function secSettings(main) {
      <label class="chk"><input type="checkbox" id="pCa" ${s.payments.cash !== false ? 'checked' : ''}><span>${esc(A('كاش', 'Bar'))}</span></label><label class="chk"><input type="checkbox" id="pCd" ${s.payments.card ? 'checked' : ''}><span>${esc(A('بطاقة EC عند الاستلام', 'EC-Karte bei Übergabe'))}</span></label>
      <label class="chk"><input type="checkbox" id="pPp" ${s.payments.paypal ? 'checked' : ''}><span>PayPal (PayPal.me)</span></label>
      <label class="f"><span>${esc(A('اسم PayPal.me (مثلاً steinolive)', 'PayPal.me-Name (z. B. steinolive)'))}</span><input type="text" id="pPm" value="${esc(s.payments.paypal_me || '')}"></label></div>
+    <div class="card"><h3>${esc(A('الحساب البنكي (للتحويل)', 'Bankverbindung (für Überweisung)'))}</h3>
+     <label class="chk"><input type="checkbox" id="pTr" ${s.payments.transfer ? 'checked' : ''}><span>${esc(A('السماح بالدفع بالتحويل البنكي', 'Zahlung per Überweisung anbieten'))}</span></label>
+     <p class="note">${esc(A('الزبون بيشوف هالمعلومات مع كود QR بيفتح تطبيق البنك (Sparkasse وغيره) والتحويل معبّى. المصاري بتروح مباشرة عحساب صاحب المحل.', 'Der Kunde sieht diese Daten mit einem QR-Code (GiroCode) für seine Banking-App. Das Geld geht direkt auf das Konto des Inhabers.'))}</p>
+     ${f('bank_holder', A('اسم صاحب الحساب', 'Kontoinhaber'))}<div class="row">${f('bank_iban', 'IBAN')}${f('bank_bic', 'BIC')}</div>${f('bank_name', A('اسم البنك', 'Bank'))}</div>
+    <div class="card"><h3>${esc(A('الفاتورة والضريبة', 'Rechnung & Steuer'))}</h3>
+     <label class="chk"><input type="checkbox" id="sKu" ${s.kleinunternehmer ? 'checked' : ''}><span>${esc(A('Kleinunternehmer (بدون ضريبة، § 19 UStG)', 'Kleinunternehmer (ohne MwSt, § 19 UStG)'))}</span></label>
+     <label class="f"><span>${esc(A('ضريبة رسوم التوصيل %', 'MwSt auf Liefergebühr %'))}</span><select id="sDv">${[7, 19].map(v => `<option ${+(s.delivery_vat || 7) === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+     <p class="note">${esc(A('اسأل المستشار الضريبي (Steuerberater) عن الضريبة الصحيحة.', 'Den richtigen Steuersatz bitte mit dem Steuerberater klären.'))}</p></div>
+    <div class="card"><h3>${esc(A('الإيميلات للزباين', 'E-Mails an Kunden'))}</h3>
+     <p class="note">${esc(A('بتنبعت لحالها: وصل الطلب، قيد التحضير، جاهز، بالطريق، تم التوصيل/الاستلام، ملغي، وصل التحويل.', 'Werden automatisch gesendet: eingegangen, in Zubereitung, fertig, unterwegs, geliefert/abgeholt, storniert, Zahlung erhalten.'))}</p>
+     ${f('mail_from', A('المرسل (مثلاً Stein & Olive <bestellung@deine-domain.de>)', 'Absender (z. B. Stein & Olive <bestellung@deine-domain.de>)'))}${f('site_url', A('رابط الموقع', 'Website-Adresse'))}
+     <div id="mailLog" class="note">…</div></div>
     <div class="card"><h3>${esc(A('إعلان بالصفحة الرئيسية', 'Hinweis auf Startseite'))}</h3>${f('announce_ar', 'بالعربي')}${f('announce_de', 'Deutsch')}
      <label class="f"><span>${esc(A('تنبيه الصلاحية قبل (أيام)', 'MHD-Warnung (Tage vorher)'))}</span><input type="number" id="sEx" value="${esc(s.expiry_warn_days || 3)}"></label></div>
     <button class="btn full" id="setSave">${esc(A('حفظ الإعدادات', 'Einstellungen speichern'))}</button>`;
   const dz = () => { $('#zones').innerHTML = s.zones.map((z, i) => `<div class="card" style="padding:8px"><input type="text" data-zp="${i}" value="${esc(z.plz)}" placeholder="20099, 20097"><div class="row" style="margin-top:6px"><label class="f" style="margin:0"><span>${esc(A('سعر التوصيل €', 'Gebühr €'))}</span><input type="number" step="0.1" data-zf="${i}" value="${esc(z.fee)}"></label><label class="f" style="margin:0"><span>${esc(A('الحد الأدنى €', 'Mindestwert €'))}</span><input type="number" step="0.5" data-zm="${i}" value="${esc(z.min)}"></label></div><button class="btn s r" data-zx="${i}" style="margin-top:6px">✕</button></div>`).join('');
     $$('[data-zx]').forEach(b => b.onclick = () => { readZ(); s.zones.splice(+b.dataset.zx, 1); dz(); }); };
   const readZ = () => { s.zones = s.zones.map((z, i) => ({ plz: $(`[data-zp="${i}"]`).value.replace(/\s/g, ''), fee: parseFloat($(`[data-zf="${i}"]`).value) || 0, min: parseFloat($(`[data-zm="${i}"]`).value) || 0 })); };
+  sb.from('mail_queue').select('event,created_at,sent_at,error,order_id').order('created_at', { ascending: false }).limit(8).then(({ data }) => {
+    const el = $('#mailLog'); if (!el) return;
+    el.innerHTML = (data || []).length ? (data.some(m => (m.error || '').includes('RESEND')) ? `<div class="warnbox">${esc(A('الإيميلات لسا مش شغالة: لازم ينحط مفتاح خدمة الإيميل (RESEND_API_KEY).', 'E-Mails noch nicht aktiv: der Schlüssel des E-Mail-Dienstes (RESEND_API_KEY) fehlt.'))}</div>` : '') +
+      data.map(m => `<div class="sum"><span>#${m.order_id} · ${esc(m.event)} · ${fmtDate(m.created_at)}</span><span>${m.sent_at ? '<span class="pill ok">' + esc(A('انبعت', 'Gesendet')) + '</span>' : '<span class="pill bad">' + esc((m.error || A('بالانتظار', 'Wartet')).slice(0, 40)) + '</span>'}</span></div>`).join('')
+      : esc(A('لسا ما انبعت شي.', 'Noch keine E-Mails.'));
+  });
   dz(); $('#zAdd').onclick = () => { readZ(); s.zones.push({ plz: '', fee: 3, min: 20 }); dz(); };
   $('#setSave').onclick = async () => {
     readZ(); $$('[data-k]').forEach(i => s[i.dataset.k] = i.value.trim());
     s.pickup = $('#sPk').checked; s.delivery = $('#sDl').checked; s.expiry_warn_days = +$('#sEx').value || 3;
-    s.payments = { cash: $('#pCa').checked, card: $('#pCd').checked, paypal: $('#pPp').checked, paypal_me: $('#pPm').value.trim() };
+    s.payments = { cash: $('#pCa').checked, card: $('#pCd').checked, transfer: $('#pTr').checked, paypal: $('#pPp').checked, paypal_me: $('#pPm').value.trim() };
+    s.kleinunternehmer = $('#sKu').checked; s.delivery_vat = +$('#sDv').value;
+    if (s.bank_iban) s.bank_iban = s.bank_iban.replace(/\s/g, '').toUpperCase();
+    if (s.payments.transfer && !/^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(s.bank_iban || '')) return toast(A('الـ IBAN مش صحيح', 'IBAN ungültig'), 1);
     const { error } = await sb.from('settings').update({ data: s }).eq('id', 1); if (error) return err(error);
     S.settings = s; toast('✓');
   };
@@ -849,7 +869,7 @@ async function vDriver() {
         ${Object.keys(byShop).map(sid => { const its = byShop[sid].filter(i => i.status !== 'rejected'); const rdy = its.length && its.every(i => i.status === 'ready');
           return `<div class="shopgrp"><div class="sum"><b>${SI((App.shopById(sid) || {}).type)} ${esc(L(App.shopById(sid) || {}, 'name'))}</b><span class="pill ${rdy ? 'ok' : 'warn'}">${rdy ? ' ' + esc(A('جاهز', 'Fertig')) : ' ' + esc(A('عم يتحضّر', 'In Arbeit'))}</span></div>
             <div class="note">${its.map(i => `${fq(i.final_qty || i.qty, i.unit)} ${esc(S.lang === 'ar' ? i.name_ar : i.name_de)}${i.cooled ? ' *' : ''}`).join(' • ')}</div></div>`; }).join('')}
-        <div class="sum tot"><span>${o.payment === 'cash' ? ' ' + esc(A('حصّل كاش', 'Bar kassieren')) : o.payment === 'card' ? ' ' + esc(A('بطاقة EC', 'EC-Karte')) : ' PayPal'}</span><span>${money(o.total)}</span></div>
+        <div class="sum tot"><span>${o.payment === 'cash' ? esc(A('حصّل كاش', 'Bar kassieren')) : o.payment === 'card' ? esc(A('بطاقة EC', 'EC-Karte')) : o.payment === 'transfer' ? esc(o.paid ? A('تحويل، مدفوع', 'Überweisung, bezahlt') : A('تحويل، لسا ما وصل', 'Überweisung, offen')) : 'PayPal'}</span><span>${money(o.total)}</span></div>
         <div class="acts" style="margin-top:8px">
          ${tab === 'avail' ? `<button class="btn g" data-take="${o.id}">${esc(A('بآخدها', 'Übernehmen'))}</button>` : ''}
          ${tab === 'mine' ? `<a class="btn s o" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addr)}">${esc(A('الطريق', 'Navigation'))}</a>
