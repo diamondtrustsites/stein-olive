@@ -505,11 +505,11 @@ function vShop(id) {
   const cats = S.cats.filter(c => c.shop_id === id && prods.some(p => p.category_id === c.id));
   const o = openLabel(sh); const r = S.ratings[id];
   const hrs = DAYS.slice(1).concat('so').map(d => `<div class="sum"><span>${esc(t('days')[d])}</span><span>${esc((sh.hours || {})[d] || t('closedday'))}</span></div>`).join('');
-  page(`<section class="shead"><div class="cv" style="${bgImg(shopCover(sh))}"></div><div class="in">
+  page(`<section class="shead${sh.banner_url ? ' hasbn' : ''}"><div class="cv" style="${bgImg(sh.banner_url || shopCover(sh))}"></div><div class="in">
      <h1>${esc(L(sh, 'name'))}</h1><div class="ds">${esc(L(sh, 'desc'))}</div>
      <div class="acts"><span class="state ${o.on ? '' : 'off'}">${esc(o.txt)}</span>${r ? `<span class="pill be">${ic('star', 's')} ${r.avg} · ${r.n}</span>` : ''}
      <button class="btn s o" id="hrsB">${ic('clock', 's')} ${esc(t('hours'))}</button>${sh.phone ? `<a class="btn s o" href="tel:${esc(sh.phone)}">${ic('phone', 's')}</a>` : ''}</div></div></section>
-   <div class="chips" id="chips"><button class="chip on" data-c="">${esc(t('all'))}</button>${cats.map(c => `<button class="chip" data-c="${esc(c.id)}">${esc(L(c, 'name'))}</button>`).join('')}</div>
+   <div class="chips" id="chips"><button class="chip on" data-c="">${esc(t('all'))}</button>${cats.map(c => `<button class="chip${c.image_url ? ' img' : ''}" data-c="${esc(c.id)}">${c.image_url ? `<i style="${bgImg(c.image_url)}"></i>` : ''}${esc(L(c, 'name'))}</button>`).join('')}</div>
    <div id="plist"></div>`);
   $('#hrsB').onclick = () => modal(`<button class="ib x" data-close>${ic('x')}</button><h3>${esc(t('hours'))}</h3><div class="note" style="margin-bottom:8px">${esc(L(sh, 'name'))}</div>${hrs}`);
   let cat = '';
@@ -517,7 +517,7 @@ function vShop(id) {
     const list = prods.filter(p => !cat || p.category_id === cat);
     let html = '';
     if (!cat && cats.length) {
-      cats.forEach(c => { const l = list.filter(p => p.category_id === c.id); if (l.length) html += `<h2 class="cat">${esc(L(c, 'name'))}</h2><div class="grid">${l.map(prodCard).join('')}</div>`; });
+      cats.forEach(c => { const l = list.filter(p => p.category_id === c.id); if (l.length) html += `<h2 class="cat">${c.image_url ? `<i style="${bgImg(c.image_url)}"></i>` : ''}${esc(L(c, 'name'))}</h2><div class="grid">${l.map(prodCard).join('')}</div>`; });
       const rest = list.filter(p => !cats.some(c => c.id === p.category_id)); if (rest.length) html += `<h2 class="cat">${esc(S.lang === 'ar' ? 'منتجات أخرى' : 'Weitere Produkte')}</h2><div class="grid">${rest.map(prodCard).join('')}</div>`;
     } else html = list.length ? `<div class="grid" style="margin-top:8px">${list.map(prodCard).join('')}</div>` : `<div class="empty">${shopIc(sh.type)}<p>${esc(S.lang === 'ar' ? 'لسا ما في منتجات بهالمحل.' : 'Hier gibt es noch keine Produkte.')}</p></div>`;
     $('#plist').innerHTML = html; bindCards($('#plist'));

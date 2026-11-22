@@ -417,8 +417,8 @@ function compressImage(file, max) {
       c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); c.toBlob(b => b ? res(b) : rej(new Error('img')), 'image/jpeg', 0.82); };
     img.onerror = rej; img.src = url; });
 }
-async function uploadImage(file, folder) {
-  const blob = await compressImage(file, 900);
+async function uploadImage(file, folder, max) {
+  const blob = await compressImage(file, max || 900);
   const path = `${folder}/${Date.now()}-${App.uid()}.jpg`;
   const { error } = await sb.storage.from('images').upload(path, blob, { contentType: 'image/jpeg', upsert: false });
   if (error) throw error;
@@ -798,14 +798,16 @@ function editShop(s, done) {
     <div class="row"><label class="f"><span>${esc(A('النوع', 'Typ'))}</span><select id="sT" ${S.staff.role !== 'admin' ? 'disabled' : ''}>${Object.keys(types).map(k => `<option value="${k}" ${s.type === k ? 'selected' : ''}>${esc(A(types[k][0], types[k][1]))}</option>`).join('')}</select></label><label class="f"><span>${esc(A('الترتيب', 'Reihenfolge'))}</span><input type="number" id="sS" value="${s.sort}"></label></div>
     <div class="row"><label class="f"><span>${esc(A('هاتف', 'Telefon'))}</span><input type="tel" id="sP" value="${esc(s.phone || '')}"></label><label class="f"><span>WhatsApp</span><input type="tel" id="sW" value="${esc(s.whatsapp || '')}"></label></div>
     <label class="f"><span>${esc(A('صورة المحل', 'Bild'))}</span><div class="acts"><div class="thumb" id="sImgP" style="width:60px;height:60px;${bgImg(s.image_url)}"></div><input type="file" accept="image/*" id="sImg" style="flex:1"></div></label>
+    <label class="f"><span>${esc(A('خلفية صفحة المحل (بالعرض، غامقة)', 'Hintergrund der Geschäftsseite (breit, dunkel)'))}</span><div class="acts"><div class="thumb" id="sBnP" style="width:120px;height:40px;${bgImg(s.banner_url)}"></div><input type="file" accept="image/*" id="sBn" style="flex:1"></div></label>
     <div class="grp"><h4>${esc(A('أوقات الدوام (مثلاً 09:00-20:00، فاضي = مسكّر)', 'Öffnungszeiten (z. B. 09:00-20:00, leer = zu)'))}</h4>${DAYS.slice(1).concat('so').map(d => `<div class="li" style="padding:4px 0"><span style="width:90px">${esc(App.t('days')[d])}</span><input type="text" data-h="${d}" value="${esc((s.hours || {})[d] || '')}" placeholder="09:00-20:00"></div>`).join('')}</div>
     ${S.staff.role === 'admin' ? `<label class="chk"><input type="checkbox" id="sA" ${s.active ? 'checked' : ''}><span>${esc(A('ظاهر بالموقع', 'Sichtbar'))}</span></label>` : ''}
     <button class="btn full" id="sSave">${esc(A('حفظ', 'Speichern'))}</button>`);
-  let img = s.image_url || '';
+  let img = s.image_url || ''; let banner = s.banner_url || '';
+  $('#sBn', root).onchange = async e => { const f = e.target.files[0]; if (!f) return; try { banner = await uploadImage(f, 'shops', 1600); $('#sBnP', root).style.backgroundImage = `url('${safeUrl(banner)}')`; } catch (x) { err(x); } };
   $('#sImg', root).onchange = async e => { const f = e.target.files[0]; if (!f) return; try { img = await uploadImage(f, 'shops'); $('#sImgP', root).style.backgroundImage = `url('${safeUrl(img)}')`; } catch (x) { err(x); } };
   $('#sSave', root).onclick = async () => {
     const hours = {}; $$('[data-h]', root).forEach(i => hours[i.dataset.h] = i.value.trim());
-    const o = { name_ar: $('#sNa', root).value.trim(), name_de: $('#sNd', root).value.trim(), desc_ar: $('#sDa', root).value.trim(), desc_de: $('#sDd', root).value.trim(), sort: +$('#sS', root).value || 0, phone: $('#sP', root).value.trim(), whatsapp: $('#sW', root).value.trim(), image_url: img || null, hours };
+    const o = { name_ar: $('#sNa', root).value.trim(), name_de: $('#sNd', root).value.trim(), desc_ar: $('#sDa', root).value.trim(), desc_de: $('#sDd', root).value.trim(), sort: +$('#sS', root).value || 0, phone: $('#sP', root).value.trim(), whatsapp: $('#sW', root).value.trim(), image_url: img || null, banner_url: banner || null, hours };
     if (S.staff.role === 'admin') { o.type = $('#sT', root).value; o.active = $('#sA', root).checked; }
     let r;
     if (isNew) { o.id = $('#sId', root).value.trim().toLowerCase().replace(/[^a-z0-9-]/g, ''); if (!o.id || !o.name_de) return toast('ID / Name ?', 1); r = await sb.from('shops').insert(o); }
