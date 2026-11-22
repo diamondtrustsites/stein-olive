@@ -910,7 +910,7 @@ async function secCustomers(main) {
 }
 
 /* ---------- settings ---------- */
-const APPVER = '2026.11.22-9';
+const APPVER = '2026.11.22-10';
 const SETSEC = [
   ['general', 'store', 'معلومات المحل', 'Geschäftsdaten', 'الاسم، العنوان، Impressum', 'Name, Adresse, Impressum'],
   ['orders', 'inbox', 'استقبال الطلبات', 'Bestellannahme', 'إيقاف مؤقت، طلب مسبق، حد أدنى', 'Pause, Vorbestellung, Mindestwert'],
