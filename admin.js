@@ -339,15 +339,17 @@ async function paintPush(btn) {
 }
 /* ---------- kitchen / shop slip (Bon) ---------- */
 const autoPrintOn = () => localStorage.getItem('so_autoprint') === '1' && S.staff && S.staff.role !== 'driver';
+const bonW = () => { const v = localStorage.getItem('so_bon_w') || '80'; return v === 'a4' ? 'a4' : +v; };
+const bonCopies = () => Math.min(3, Math.max(1, +(localStorage.getItem('so_bon_copies') || 1)));
 const bonQ = [];
-function queueBon(o) { bonQ.push(o); if (bonQ.length === 1) runBon(); }
+function queueBon(o) { const was = bonQ.length; for (let i = 0; i < bonCopies(); i++) bonQ.push(o); if (!was) runBon(); }
 function runBon() { const o = bonQ[0]; if (!o) return; printBon(o, () => { bonQ.shift(); setTimeout(runBon, 400); }); }
 function bonHtml(o) {
   const mine = S.staff.role === 'shop' ? S.staff.shop_id : null;
   const items = o.order_items.filter(i => i.status !== 'rejected' && (!mine || i.shop_id === mine));
   const by = {}; items.forEach(i => (by[i.shop_id] = by[i.shop_id] || []).push(i));
   const d = new Date(o.created_at);
-  return `<div class="bon"><div class="bon-no">#${+o.id}</div>
+  return `<div class="bon">${localStorage.getItem('so_bon_logo') !== '0' ? '<img class="bon-logo" src="logo-dark.png" alt="">' : ''}<div class="bon-no">#${+o.id}</div>
     <div class="bon-m">${o.mode === 'delivery' ? 'LIEFERUNG · توصيل' : 'ABHOLUNG · استلام'}</div>
     <div class="bon-t">${d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' })}${o.scheduled_at ? '<br><b>Termin: ' + new Date(o.scheduled_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }) + '</b>' : ''}</div>
     ${Object.keys(by).map(sid => `<div class="bon-s">${esc((App.shopById(sid) || {}).name_de || sid)}</div>` + by[sid].map(i => `<div class="bon-i"><b>${esc(fq(i.final_qty || i.qty, i.unit))}</b><span>${esc(i.name_de)}<small dir="rtl">${esc(i.name_ar)}</small>${(i.options || []).length ? `<small>${esc(i.options.map(x => x.de || x.ar).join(', '))}</small>` : ''}${i.note ? `<small>» ${esc(i.note)}</small>` : ''}${i.cake ? `<small>Torte ${esc(i.cake.date)} ${esc(i.cake.text || '')}</small>` : ''}</span></div>`).join('')).join('')}
@@ -357,6 +359,7 @@ function bonHtml(o) {
 function printBon(o, done) {
   let area = $('#bonArea'); if (!area) { area = document.createElement('div'); area.id = 'bonArea'; document.body.appendChild(area); }
   area.innerHTML = bonHtml(o);
+  const w = bonW(); area.style.setProperty('--bonw', w === 'a4' ? '180mm' : w === 58 ? '48mm' : '72mm');
   document.body.classList.add('bonprint');
   let fin = false; const end = () => { if (fin) return; fin = true; document.body.classList.remove('bonprint'); area.innerHTML = ''; window.removeEventListener('afterprint', end); done && done(); };
   window.addEventListener('afterprint', end);
@@ -905,21 +908,37 @@ async function secCustomers(main) {
 }
 
 /* ---------- settings ---------- */
+const APPVER = '2026.11.22-8';
+const SETSEC = [
+  ['general', 'store', 'معلومات المحل', 'Geschäftsdaten', 'الاسم، العنوان، Impressum', 'Name, Adresse, Impressum'],
+  ['orders', 'inbox', 'استقبال الطلبات', 'Bestellannahme', 'إيقاف مؤقت، طلب مسبق، حد أدنى', 'Pause, Vorbestellung, Mindestwert'],
+  ['delivery', 'truck', 'التوصيل والاستلام', 'Lieferung & Abholung', 'مناطق التوصيل والأسعار', 'Liefergebiete und Gebühren'],
+  ['times', 'clock', 'الأوقات والتقرير', 'Zeiten & Bericht', 'مدة التحضير، التقرير اليومي', 'Zubereitungszeit, Tagesbericht'],
+  ['payment', 'tag', 'الدفع', 'Zahlung', 'كاش، بطاقة، Stripe، تحويل', 'Bar, Karte, Stripe, Überweisung'],
+  ['invoice', 'receipt', 'الفاتورة والضريبة', 'Rechnung & Steuer', 'Kleinunternehmer، ضريبة', 'Kleinunternehmer, MwSt'],
+  ['emails', 'chat', 'الإيميلات', 'E-Mails', 'Resend، المرسل، تجربة', 'Resend, Absender, Test'],
+  ['printer', 'print', 'الطابعة', 'Drucker', 'بون، عرض الورق، طباعة تلقائية', 'Bon, Papierbreite, Auto-Druck'],
+  ['notify', 'bell', 'الإشعارات والصوت', 'Mitteilungen & Ton', 'إشعارات الموبايل، الصوت', 'Push-Mitteilungen, Ton'],
+  ['home', 'home', 'الصفحة الرئيسية', 'Startseite', 'إعلان، تنبيه الصلاحية', 'Hinweis, MHD-Warnung'],
+  ['system', 'key', 'الأمان والنظام', 'Sicherheit & System', 'كلمة السر، الأجهزة، التحديث', 'Passwort, Geräte, Update'],
+];
 function secSettings(main) {
   const s = JSON.parse(JSON.stringify(S.settings)); s.payments = s.payments || {}; s.zones = s.zones || [];
   const f = (k, lab, type) => `<label class="f"><span>${lab}</span><input type="${type || 'text'}" data-k="${k}" value="${esc(s[k] || '')}"></label>`;
-  main.innerHTML = `<div class="card"><h3>${esc(A('معلومات الباساج (للـ Impressum)', 'Angaben (für Impressum)'))}</h3>
+  main.innerHTML = `<div class="setnav" id="setNav">${SETSEC.map(x => `<button data-go="${x[0]}">${ic(x[1])}<span><b>${esc(A(x[2], x[3]))}</b><small>${esc(A(x[4], x[5]))}</small></span>${ic(S.lang === 'ar' ? 'back' : 'fwd', 's')}</button>`).join('')}</div>
+    <div class="sethd" id="setHd" hidden><button class="btn s o" id="setBack">${ic(S.lang === 'ar' ? 'fwd' : 'back', 's')} ${esc(A('كل الإعدادات', 'Alle Einstellungen'))}</button><h2 id="setTitle"></h2></div>
+    <div class="card" data-sec="general"><h3>${esc(A('معلومات الباساج (للـ Impressum)', 'Angaben (für Impressum)'))}</h3>
      ${f('name', 'Name')}${f('address', A('العنوان', 'Adresse'))}<div class="row">${f('phone', A('هاتف', 'Telefon'), 'tel')}${f('whatsapp', 'WhatsApp', 'tel')}</div><div class="row">${f('email', 'E-Mail', 'email')}${f('instagram', 'Instagram-Link')}</div>
      <div class="row">${f('owner', A('صاحب المحل (Inhaber)', 'Inhaber'))}${f('legal_form', A('الشكل القانوني', 'Rechtsform'))}</div><div class="row">${f('tax_id', 'Steuernummer')}${f('vat_id', 'USt-IdNr.')}</div></div>
-    <div class="card"><h3>${esc(A('الاستلام والتوصيل', 'Abholung & Lieferung'))}</h3>
+    <div class="card" data-sec="delivery"><h3>${esc(A('الاستلام والتوصيل', 'Abholung & Lieferung'))}</h3>
      <label class="chk"><input type="checkbox" id="sPk" ${s.pickup !== false ? 'checked' : ''}><span>${esc(A('استلام من المحل', 'Abholung'))}</span></label><label class="chk"><input type="checkbox" id="sDl" ${s.delivery !== false ? 'checked' : ''}><span>${esc(A('توصيل', 'Lieferung'))}</span></label>
      <div class="note">${esc(A('مناطق التوصيل: اكتب الرموز البريدية مفصولة بفاصلة، والسعر والحد الأدنى', 'Liefergebiete: PLZ mit Komma getrennt, Gebühr und Mindestbestellwert'))}</div>
      <div id="zones"></div><button class="btn s o" id="zAdd" style="margin-top:6px">${esc(A('منطقة', 'Gebiet'))}</button></div>
-    <div class="card"><h3>${esc(A('الدفع', 'Zahlung'))}</h3>
+    <div class="card" data-sec="payment"><h3>${esc(A('الدفع', 'Zahlung'))}</h3>
      <label class="chk"><input type="checkbox" id="pCa" ${s.payments.cash !== false ? 'checked' : ''}><span>${esc(A('كاش', 'Bar'))}</span></label><label class="chk"><input type="checkbox" id="pCd" ${s.payments.card ? 'checked' : ''}><span>${esc(A('بطاقة EC عند الاستلام', 'EC-Karte bei Übergabe'))}</span></label>
      <label class="chk"><input type="checkbox" id="pPp" ${s.payments.paypal ? 'checked' : ''}><span>PayPal (PayPal.me)</span></label>
      <label class="f"><span>${esc(A('اسم PayPal.me (مثلاً steinolive)', 'PayPal.me-Name (z. B. steinolive)'))}</span><input type="text" id="pPm" value="${esc(s.payments.paypal_me || '')}"></label></div>
-    <div class="card"><h3>${esc(A('الدفع بالبطاقة أونلاين (Stripe)', 'Online-Kartenzahlung (Stripe)'))}</h3>
+    <div class="card" data-sec="payment"><h3>${esc(A('الدفع بالبطاقة أونلاين (Stripe)', 'Online-Kartenzahlung (Stripe)'))}</h3>
      <p class="note">${esc(A('الزبون بيدفع بالبطاقة أو Apple Pay أو Google Pay، والمصاري بتنزل بحساب Stripe تبع صاحب المحل، ومنو لحسابو البنكي (Sparkasse). Stripe بياخد عمولة صغيرة على كل دفعة.', 'Kunden zahlen mit Karte, Apple Pay oder Google Pay. Das Geld geht auf das Stripe-Konto des Inhabers und von dort auf sein Bankkonto (z. B. Sparkasse). Stripe berechnet pro Zahlung eine kleine Gebühr.'))}</p>
      <div id="stState" class="note">…</div>
      <label class="chk"><input type="checkbox" id="pSt" ${s.payments.stripe ? 'checked' : ''}><span>${esc(A('اعرض الدفع بالبطاقة أونلاين للزباين', 'Online-Kartenzahlung anbieten'))}</span></label>
@@ -927,15 +946,15 @@ function secSettings(main) {
      <label class="f"><span>${esc(A('مفتاح الـ Webhook (Signing secret، بيبلّش بـ whsec_)', 'Webhook-Schlüssel (Signing secret, beginnt mit whsec_)'))}</span><input type="password" id="stWh" autocomplete="off" spellcheck="false" maxlength="210" placeholder="whsec_…"></label>
      <div class="acts"><button class="btn s" id="stSave">${esc(A('حفظ مفاتيح Stripe', 'Stripe-Schlüssel speichern'))}</button><button class="btn s r" id="stDel" hidden>${esc(A('فصل Stripe', 'Stripe trennen'))}</button></div>
      <p class="note" style="margin-top:10px">${esc(A('رابط الـ Webhook اللي لازم ينحط بـ Stripe (الحدث: checkout.session.completed):', 'Webhook-Adresse für Stripe (Ereignis: checkout.session.completed):'))}<br><code dir="ltr" style="word-break:break-all">${esc(App.CFG.url)}/functions/v1/stripe/webhook</code></p></div>
-    <div class="card"><h3>${esc(A('الحساب البنكي (للتحويل)', 'Bankverbindung (für Überweisung)'))}</h3>
+    <div class="card" data-sec="payment"><h3>${esc(A('الحساب البنكي (للتحويل)', 'Bankverbindung (für Überweisung)'))}</h3>
      <label class="chk"><input type="checkbox" id="pTr" ${s.payments.transfer ? 'checked' : ''}><span>${esc(A('السماح بالدفع بالتحويل البنكي', 'Zahlung per Überweisung anbieten'))}</span></label>
      <p class="note">${esc(A('الزبون بيشوف هالمعلومات مع كود QR بيفتح تطبيق البنك (Sparkasse وغيره) والتحويل معبّى. المصاري بتروح مباشرة عحساب صاحب المحل.', 'Der Kunde sieht diese Daten mit einem QR-Code (GiroCode) für seine Banking-App. Das Geld geht direkt auf das Konto des Inhabers.'))}</p>
      ${f('bank_holder', A('اسم صاحب الحساب', 'Kontoinhaber'))}<div class="row">${f('bank_iban', 'IBAN')}${f('bank_bic', 'BIC')}</div>${f('bank_name', A('اسم البنك', 'Bank'))}</div>
-    <div class="card"><h3>${esc(A('الفاتورة والضريبة', 'Rechnung & Steuer'))}</h3>
+    <div class="card" data-sec="invoice"><h3>${esc(A('الفاتورة والضريبة', 'Rechnung & Steuer'))}</h3>
      <label class="chk"><input type="checkbox" id="sKu" ${s.kleinunternehmer ? 'checked' : ''}><span>${esc(A('Kleinunternehmer (بدون ضريبة، § 19 UStG)', 'Kleinunternehmer (ohne MwSt, § 19 UStG)'))}</span></label>
      <label class="f"><span>${esc(A('ضريبة رسوم التوصيل %', 'MwSt auf Liefergebühr %'))}</span><select id="sDv">${[7, 19].map(v => `<option ${+(s.delivery_vat || 7) === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
      <p class="note">${esc(A('اسأل المستشار الضريبي (Steuerberater) عن الضريبة الصحيحة.', 'Den richtigen Steuersatz bitte mit dem Steuerberater klären.'))}</p></div>
-    <div class="card"><h3>${esc(A('الإيميلات للزباين', 'E-Mails an Kunden'))}</h3>
+    <div class="card" data-sec="emails"><h3>${esc(A('الإيميلات للزباين', 'E-Mails an Kunden'))}</h3>
      <p class="note">${esc(A('بتنبعت لحالها: وصل الطلب، قيد التحضير، جاهز، بالطريق، تم التوصيل/الاستلام، ملغي، وصل التحويل.', 'Werden automatisch gesendet: eingegangen, in Zubereitung, fertig, unterwegs, geliefert/abgeholt, storniert, Zahlung erhalten.'))}</p>
      ${f('mail_from', A('المرسل (مثلاً Stein & Olive <bestellung@deine-domain.de>)', 'Absender (z. B. Stein & Olive <bestellung@deine-domain.de>)'))}${f('site_url', A('رابط الموقع', 'Website-Adresse'))}
      <div class="sub" style="margin:14px 0 6px"><b>${esc(A('مفتاح Resend', 'Resend-Schlüssel'))}</b></div>
@@ -946,15 +965,48 @@ function secSettings(main) {
      <div class="row"><label class="f"><span>${esc(A('إيميل تجربة', 'Test-E-Mail an'))}</span><input type="email" id="rsTo" maxlength="120" value="${esc(s.email || '')}"></label></div>
      <button class="btn s o" id="rsTest">${esc(A('ابعت إيميل تجربة', 'Test-E-Mail senden'))}</button>
      <div id="mailLog" class="note" style="margin-top:12px">…</div></div>
-    <div class="card"><h3>${esc(A('الأوقات والتقرير اليومي', 'Zeiten & Tagesbericht'))}</h3>
+    <div class="card" data-sec="times"><h3>${esc(A('الأوقات والتقرير اليومي', 'Zeiten & Tagesbericht'))}</h3>
      <div class="row">${f('prep_min', A('مدة التحضير (دقايق)', 'Zubereitung (Minuten)'), 'number')}${f('drive_min', A('مدة التوصيل (دقايق)', 'Lieferfahrt (Minuten)'), 'number')}</div>
      <p class="note">${esc(A('منها بنحسب الوقت المتوقع اللي بيشوفو الزبون.', 'Daraus berechnen wir die Zeit, die der Kunde sieht.'))}</p>
      ${f('report_email', A('إيميل التقرير اليومي (مثلاً إيميل صاحب المحل)', 'E-Mail für den Tagesbericht (z. B. Inhaber)'), 'email')}
      <p class="note">${esc(A('كل يوم الساعة 23:00 بيوصل إيميل فيه: المبيعات لكل محل، أكتر شي انباع، والمنتجات اللي قربت تخلص. اتركها فاضية إذا ما بدك.', 'Jeden Tag um 23:00 Uhr kommt eine E-Mail mit Umsatz pro Geschäft, Bestsellern und knappen Produkten. Leer lassen = kein Bericht.'))}</p>
      <button class="btn s o" id="repTest">${esc(A('ابعت تقرير اليوم هلق', 'Heutigen Bericht jetzt senden'))}</button></div>
-    <div class="card"><h3>${esc(A('إعلان بالصفحة الرئيسية', 'Hinweis auf Startseite'))}</h3>${f('announce_ar', 'بالعربي')}${f('announce_de', 'Deutsch')}
+    <div class="card" data-sec="home"><h3>${esc(A('إعلان بالصفحة الرئيسية', 'Hinweis auf Startseite'))}</h3>${f('announce_ar', 'بالعربي')}${f('announce_de', 'Deutsch')}
      <label class="f"><span>${esc(A('تنبيه الصلاحية قبل (أيام)', 'MHD-Warnung (Tage vorher)'))}</span><input type="number" id="sEx" value="${esc(s.expiry_warn_days || 3)}"></label></div>
-    <button class="btn full" id="setSave">${esc(A('حفظ الإعدادات', 'Einstellungen speichern'))}</button>`;
+    <div class="card" data-sec="orders"><h3>${esc(A('استقبال الطلبات', 'Bestellannahme'))}</h3>
+     <label class="chk"><input type="checkbox" id="oPause" ${s.orders_paused ? 'checked' : ''}><span><b>${esc(A('وقّف الطلبات مؤقتاً', 'Bestellungen pausieren'))}</b> · ${esc(A('مثلاً إذا في ضغط كبير أو مشكلة', 'z. B. bei Überlastung oder Problemen'))}</span></label>
+     <div class="row">${f('pause_ar', A('رسالة للزباين (عربي)', 'Hinweis für Kunden (Arabisch)'))}${f('pause_de', A('رسالة للزباين (ألماني)', 'Hinweis für Kunden (Deutsch)'))}</div>
+     <label class="chk"><input type="checkbox" id="oSched" ${s.allow_scheduled !== false ? 'checked' : ''}><span>${esc(A('الزبون بيقدر يختار وقت محدد (طلب مسبق)', 'Vorbestellung mit Wunschzeit erlauben'))}</span></label>
+     <label class="chk"><input type="checkbox" id="oAcc" ${s.require_account ? 'checked' : ''}><span>${esc(A('الطلب بس مع حساب (بدون طلب كضيف)', 'Bestellen nur mit Kundenkonto (kein Gastkauf)'))}</span></label>
+     <div class="row">${f('min_total', A('حد أدنى عام للطلب € (0 = بلا)', 'Mindestbestellwert allgemein € (0 = keiner)'), 'number')}<span></span></div>
+     <p class="note">${esc(A('أوقات الدوام وفتح وسكر كل محل بتتغير من «المحلات».', 'Öffnungszeiten und Geöffnet/Geschlossen pro Geschäft stellst du unter „Geschäfte“ ein.'))}</p></div>
+    <div class="card" data-sec="printer"><h3>${esc(A('الطابعة', 'Drucker'))}</h3>
+     <p class="note">${esc(A('هالإعدادات لهالجهاز بس (كل محل بيضبط جهازو). بتنحفظ لحالها.', 'Diese Einstellungen gelten nur für dieses Gerät (jedes Geschäft stellt sein Gerät ein). Wird sofort gespeichert.'))}</p>
+     <label class="chk"><input type="checkbox" id="dAuto" ${autoPrintOn() ? 'checked' : ''}><span><b>${esc(A('طباعة تلقائية لكل طلب جديد', 'Neue Bestellungen automatisch drucken'))}</b></span></label>
+     <div class="row"><label class="f"><span>${esc(A('عرض ورق البون', 'Papierbreite Bon'))}</span><select id="dW"><option value="80" ${bonW() === 80 ? 'selected' : ''}>80 mm</option><option value="58" ${bonW() === 58 ? 'selected' : ''}>58 mm</option><option value="a4" ${bonW() === 'a4' ? 'selected' : ''}>A4</option></select></label>
+     <label class="f"><span>${esc(A('عدد النسخ', 'Anzahl Kopien'))}</span><select id="dC">${[1, 2, 3].map(n => `<option ${bonCopies() === n ? 'selected' : ''}>${n}</option>`).join('')}</select></label></div>
+     <label class="chk"><input type="checkbox" id="dLogo" ${localStorage.getItem('so_bon_logo') !== '0' ? 'checked' : ''}><span>${esc(A('اللوغو على البون', 'Logo auf dem Bon'))}</span></label>
+     <button class="btn s" id="dTest">${ic('print', 's')} ${esc(A('اطبع بون تجربة', 'Testbon drucken'))}</button>
+     <details class="howto"><summary>${esc(A('كيف بوصل الطابعة؟', 'Wie verbinde ich den Drucker?'))}</summary>
+      <ol><li>${esc(A('اشتري طابعة بونات 80mm بتشتغل WLAN أو Bluetooth، ومكتوب عليها إنها بتدعم AirPrint (آيفون/آيباد) أو Mopria (أندرويد).', 'Einen 80-mm-Bondrucker mit WLAN oder Bluetooth kaufen, der AirPrint (iPhone/iPad) oder Mopria (Android) unterstützt.'))}</li>
+      <li>${esc(A('أندرويد: الإعدادات ← الأجهزة المتصلة ← الطباعة ← فعّل «خدمة الطباعة الافتراضية» أو ركّب تطبيق الطابعة من Play Store. إذا الطابعة Bluetooth بس، ركّب تطبيق RawBT.', 'Android: Einstellungen → Verbundene Geräte → Drucken → „Standard-Druckdienst“ aktivieren oder die Drucker-App aus dem Play Store installieren. Bei reinem Bluetooth-Drucker die App RawBT nutzen.'))}</li>
+      <li>${esc(A('آيفون/آيباد: الطابعة والجهاز على نفس الـ WLAN، وبتطلع لحالها لما تكبس طباعة.', 'iPhone/iPad: Drucker und Gerät im selben WLAN, der Drucker erscheint beim Drucken automatisch.'))}</li>
+      <li>${esc(A('كمبيوتر ويندوز: ركّب الطابعة وخليها «الطابعة الافتراضية». للطباعة بدون ما يطلع شباك الطباعة: افتح Chrome بـ اختصار مع الإضافة --kiosk-printing.', 'Windows-PC: Drucker installieren und als Standarddrucker setzen. Für Druck ohne Druckfenster Chrome über eine Verknüpfung mit --kiosk-printing starten.'))}</li>
+      <li>${esc(A('بعدين اكبس «اطبع بون تجربة» وتأكد إنو الورق والعرض مظبوطين.', 'Dann „Testbon drucken“ und prüfen, ob Breite und Papier passen.'))}</li></ol></details></div>
+    <div class="card" data-sec="notify"><h3>${esc(A('الإشعارات والصوت', 'Mitteilungen & Ton'))}</h3>
+     <p class="note">${esc(A('لهالجهاز بس.', 'Nur für dieses Gerät.'))}</p>
+     <div class="acts"><button class="btn s o" id="nPush">${ic('belloff', 's')}</button><button class="btn s o" id="nTest">${esc(A('إشعار تجربة', 'Test-Mitteilung'))}</button></div>
+     <label class="chk" style="margin-top:10px"><input type="checkbox" id="nSnd" ${ST.sound ? 'checked' : ''}><span>${esc(A('صوت لما يجي طلب جديد', 'Ton bei neuer Bestellung'))}</span></label>
+     <button class="btn s o" id="nBeep">${esc(A('جرّب الصوت', 'Ton testen'))}</button>
+     <p class="note">${esc(A('على الآيفون الإشعارات بتشتغل بس إذا الموقع منضاف للشاشة الرئيسية (Safari ← مشاركة ← إلى الشاشة الرئيسية).', 'Auf dem iPhone funktionieren Mitteilungen nur, wenn die Seite zum Home-Bildschirm hinzugefügt wurde (Safari → Teilen → Zum Home-Bildschirm).'))}</p></div>
+    <div class="card" data-sec="system"><h3>${esc(A('الأمان والنظام', 'Sicherheit & System'))}</h3>
+     <div class="acts"><a class="btn s o" href="#/admin/account">${ic('key', 's')} ${esc(A('غيّر كلمة السر تبعي', 'Mein Passwort ändern'))}</a><a class="btn s o" href="#/admin/staff">${ic('users', 's')} ${esc(A('الموظفين وكلمات السر', 'Mitarbeiter & Passwörter'))}</a></div>
+     <p class="note" style="margin-top:12px">${esc(A('إذا موبايل ضاع أو حدا عرف كلمة السر: غيّر كلمة السر، وبعدين اطلع من كل الأجهزة.', 'Wenn ein Handy weg ist oder jemand das Passwort kennt: Passwort ändern und dann auf allen Geräten abmelden.'))}</p>
+     <button class="btn s r" id="sysOut">${esc(A('اطلع من كل الأجهزة', 'Auf allen Geräten abmelden'))}</button>
+     <hr><div class="sum"><span>${esc(A('نسخة البرنامج', 'Version'))}</span><b dir="ltr">${esc(APPVER)}</b></div>
+     <button class="btn s o" id="sysRl">${ic('refresh', 's')} ${esc(A('حدّث التطبيق على هالجهاز', 'App auf diesem Gerät aktualisieren'))}</button>
+     <p class="note">${esc(A('الموقع: ', 'Website: '))}<span dir="ltr">${esc(location.origin)}</span> · ${esc(A('دخول الفريق: ', 'Team-Login: '))}<span dir="ltr">${esc(location.origin)}/team</span></p></div>
+    <div class="setbar" id="setBar"><button class="btn full" id="setSave">${esc(A('حفظ الإعدادات', 'Einstellungen speichern'))}</button></div>`;
   const dz = () => { $('#zones').innerHTML = s.zones.map((z, i) => `<div class="card" style="padding:8px"><input type="text" data-zp="${i}" value="${esc(z.plz)}" placeholder="20099, 20097"><div class="row" style="margin-top:6px"><label class="f" style="margin:0"><span>${esc(A('سعر التوصيل €', 'Gebühr €'))}</span><input type="number" step="0.1" data-zf="${i}" value="${esc(z.fee)}"></label><label class="f" style="margin:0"><span>${esc(A('الحد الأدنى €', 'Mindestwert €'))}</span><input type="number" step="0.5" data-zm="${i}" value="${esc(z.min)}"></label></div><button class="btn s r" data-zx="${i}" style="margin-top:6px">✕</button></div>`).join('');
     $$('[data-zx]').forEach(b => b.onclick = () => { readZ(); s.zones.splice(+b.dataset.zx, 1); dz(); }); };
   const readZ = () => { s.zones = s.zones.map((z, i) => ({ plz: $(`[data-zp="${i}"]`).value.replace(/\s/g, ''), fee: parseFloat($(`[data-zf="${i}"]`).value) || 0, min: parseFloat($(`[data-zm="${i}"]`).value) || 0 })); };
@@ -1020,12 +1072,44 @@ function secSettings(main) {
     toast(A('انبعت الطلب. شوف الإيميل بعد دقيقة.', 'Gesendet. Schau in einer Minute ins Postfach.'));
     setTimeout(mailLog, 4000);
   };
+  const show = sec => {
+    ST.setSec = sec || null;
+    $('#setNav').hidden = !!sec; $('#setHd').hidden = !sec;
+    $$('[data-sec]', main).forEach(c => { c.hidden = c.dataset.sec !== sec; });
+    const x = SETSEC.find(y => y[0] === sec); $('#setTitle').textContent = x ? A(x[2], x[3]) : '';
+    $('#setBar').hidden = !sec || ['printer', 'notify', 'system'].includes(sec);
+    window.scrollTo(0, 0);
+  };
+  $$('#setNav [data-go]').forEach(b => b.onclick = () => show(b.dataset.go));
+  $('#setBack').onclick = () => show(null);
+  show(null);
+  $('#dAuto').onchange = e => { localStorage.setItem('so_autoprint', e.target.checked ? '1' : '0'); toast('✓'); };
+  $('#dW').onchange = e => { localStorage.setItem('so_bon_w', e.target.value); toast('✓'); };
+  $('#dC').onchange = e => { localStorage.setItem('so_bon_copies', e.target.value); toast('✓'); };
+  $('#dLogo').onchange = e => { localStorage.setItem('so_bon_logo', e.target.checked ? '1' : '0'); toast('✓'); };
+  $('#dTest').onclick = () => printBon({ id: 1234, mode: 'delivery', created_at: new Date().toISOString(), customer_name: 'Test', phone: '0170 0000000', note: A('بون تجربة', 'Testbon'),
+    order_items: [{ shop_id: (S.staff.shop_id || (S.shops[0] || {}).id), status: 'new', qty: 2, unit: 'piece', name_de: 'Testartikel', name_ar: 'منتج تجربة', options: [] }, { shop_id: (S.staff.shop_id || (S.shops[0] || {}).id), status: 'new', qty: 0.5, unit: 'kg', name_de: 'Oliven', name_ar: 'زيتون', options: [{ de: 'scharf', ar: 'حار' }] }] });
+  paintPush($('#nPush')); $('#nPush').onclick = () => pushToggle($('#nPush'));
+  $('#nTest').onclick = async () => {
+    if (!('Notification' in window)) return toast(A('هالمتصفح ما بيدعم الإشعارات.', 'Dieser Browser unterstützt keine Mitteilungen.'), 1);
+    if (Notification.permission !== 'granted' && await Notification.requestPermission() !== 'granted') return toast(A('الإشعارات مش مسموحة.', 'Mitteilungen nicht erlaubt.'), 1);
+    const reg = await navigator.serviceWorker.getRegistration();
+    const opt = { body: A('هيك بيطلع الإشعار لما يجي طلب.', 'So sieht eine Mitteilung bei neuer Bestellung aus.'), icon: 'icon-192.png', tag: 'so-test' };
+    if (reg) reg.showNotification('Stein & Olive', opt); else new Notification('Stein & Olive', opt);
+  };
+  $('#nSnd').onchange = e => { ST.sound = e.target.checked; localStorage.setItem('so_sound', ST.sound ? '1' : '0'); if (ST.sound) beep(); };
+  $('#nBeep').onclick = () => beep();
+  $('#sysOut').onclick = async () => { if (!confirm(A('أكيد؟ كل الأجهزة اللي فاتت بهالحساب رح تطلع.', 'Sicher? Alle Geräte mit diesem Konto werden abgemeldet.'))) return; stopLive(); await sb.auth.signOut({ scope: 'global' }); S.staff = null; location.hash = '#/team'; };
+  $('#sysRl').onclick = async () => { try { const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); const rs = await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r => r.update())); } catch (_) {} location.reload(); };
   dz(); $('#zAdd').onclick = () => { readZ(); s.zones.push({ plz: '', fee: 3, min: 20 }); dz(); };
   $('#setSave').onclick = async () => {
     readZ(); $$('[data-k]').forEach(i => s[i.dataset.k] = i.value.trim());
     s.pickup = $('#sPk').checked; s.delivery = $('#sDl').checked; s.expiry_warn_days = +$('#sEx').value || 3;
     s.payments = { cash: $('#pCa').checked, card: $('#pCd').checked, transfer: $('#pTr').checked, paypal: $('#pPp').checked, paypal_me: $('#pPm').value.trim(), stripe: $('#pSt').checked };
     s.kleinunternehmer = $('#sKu').checked; s.delivery_vat = +$('#sDv').value;
+    s.orders_paused = $('#oPause').checked; s.allow_scheduled = $('#oSched').checked; s.require_account = $('#oAcc').checked;
+    s.min_total = String(Math.max(0, parseFloat(String(s.min_total || '0').replace(',', '.')) || 0));
+    s.prep_min = String(Math.min(240, Math.max(5, parseInt(s.prep_min, 10) || 25))); s.drive_min = String(Math.min(120, Math.max(5, parseInt(s.drive_min, 10) || 15)));
     if (s.bank_iban) s.bank_iban = s.bank_iban.replace(/\s/g, '').toUpperCase();
     if (s.payments.transfer && !/^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(s.bank_iban || '')) return toast(A('الـ IBAN مش صحيح', 'IBAN ungültig'), 1);
     const { error } = await sb.from('settings').update({ data: s }).eq('id', 1); if (error) return err(error);

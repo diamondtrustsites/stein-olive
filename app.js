@@ -71,7 +71,7 @@ const T = {
   noresults:'ما لقينا شي بهالاسم.', vatincl:'كل الأسعار شاملة الضريبة.', orderno:'رقم الطلب', light:'الوضع الفاتح', dark:'الوضع الداكن', lang:'Deutsch', langs:'DE',
   login:'تسجيل الدخول', register:'حساب جديد', password:'كلمة السر', newpass:'كلمة سر جديدة', oldpass:'كلمة السر الحالية', logout:'تسجيل الخروج', save:'حفظ', saved:'انحفظ',
   welcome:'أهلاً', profile:'معلوماتي', address:'عنوان التوصيل', noorders:'لسا ما طلبت شي.', reorder:'اطلب نفس الطلب', added:'انضاف للسلة', loginhint:'سجّل دخول لتحفظ عنوانك وتشوف طلباتك.',
-  orguest:'أو كمّل بدون حساب', haveacc:'عندك حساب؟', noacc:'ما عندك حساب؟', changepass:'تغيير كلمة السر', e_locked:'الطلب خلص أو صار بالطريق، ما فيك تغيّر فيه.', e_needcode:'لازم كود التسليم من الزبون.', e_badcode:'الكود غلط.', proof:'صورة التسليم', eta_drive:'بيوصل لعندك تقريباً بعد', min:'دقيقة', eta_deliv:'التوصيل المتوقع:', eta_pick:'جاهز للاستلام تقريباً:', eta_sched:'الموعد:', eta_soon:'قرّب يجهز طلبك.', code_d:'كود التسليم: عطيه للسائق لما يوصل', code_p:'كود الاستلام: قولو بالمحل أو ورجيهن الـ QR', posat:'آخر تحديث للموقع:', posnone:'السائق بالطريق. موقعو رح يبين هون بعد شوي.', forgot:'نسيت كلمة السر؟', forgot_t:'كلمة سر جديدة', forgot_p:'اكتب الإيميل تبع حسابك. منبعتلك رابط تحط فيه كلمة سر جديدة.', forgot_send:'ابعت الرابط', forgot_ok:'إذا في حساب بهالإيميل، وصلك رابط. شوف الإيميل (وكمان مجلد Spam). الرابط شغال ساعة وحدة.', reset_t:'حط كلمة سر جديدة', newpass2:'أعد كلمة السر', e_nomatch:'كلمتين السر مش متل بعض.', e_resetbad:'الرابط مش صالح أو انتهى. اطلب رابط جديد.', reset_ok:'تغيّرت كلمة السر.',
+  orguest:'أو كمّل بدون حساب', haveacc:'عندك حساب؟', noacc:'ما عندك حساب؟', changepass:'تغيير كلمة السر', hx_t1:'خمس محلات', hx_t2:'تحت سقف واحد', hx_sub:'سوبرماركت، مطعم، حلويات، ملحمة، وأجبان وزيتون. اطلب من كلهن بطلب واحد، ومنوصّلك ياه بمشوار واحد.', hm_open:'{n} من {m} محلات مفتوحين هلق', hm_psg:'الباساج', hm_psg2:'اختار محل وابلّش', hm_feat:'المميز اليوم', hm_how:'كيف بتطلب', hm_s1:'اختار من أي محل', hm_s1d:'حط بالسلة من كذا محل بنفس الوقت.', hm_s2:'اطلب مرة وحدة', hm_s2d:'فاتورة وحدة ودفعة وحدة لكل الطلب.', hm_s3:'توصيل أو استلام', hm_s3d:'منوصّلك، أو بتاخدو من الباساج.', hm_fee:'التوصيل من', hm_nodeliv:'بس استلام من المحل.', hm_map:'افتح بالخريطة', settings:'الإعدادات', st_look:'اللغة والشكل', st_lang:'اللغة', st_theme:'الألوان', st_l:'فاتح', st_d:'غامق', st_auto:'تلقائي', st_big:'خط أكبر', st_big2:'أسهل للقراية', st_calm:'حركات أقل', st_calm2:'بيوقف الحركات بالموقع', st_notify:'الإشعارات', st_not:'إشعار لما يتغير وضع طلبي', st_not2:'لما تكون صفحة الطلب مفتوحة', st_vib:'اهتزاز', st_vib2:'الموبايل بيهتز مع الإشعار', st_app:'ركّب التطبيق', st_app2:'حط الموقع على الشاشة الرئيسية متل تطبيق، بيفتح أسرع.', st_ios:'بالآيفون: اكبس على زر المشاركة تحت بـ Safari، وبعدين «إلى الشاشة الرئيسية».', st_install:'ركّب على الشاشة الرئيسية', st_inst2:'من قائمة المتصفح (⋮) اختار «إضافة إلى الشاشة الرئيسية».', st_delacc:'احذف حسابي', st_del2:'حسابك ومعلوماتك الشخصية بينحذفو. الفواتير القديمة بتضل محفوظة عند المحل لأنو القانون بيطلب هيك.', st_deleted:'انحذف حسابك.', st_data:'المعلومات على هالجهاز', st_data2:'هالمعلومات محفوظة بس على موبايلك لتسهّل الطلب.', st_saved:'الاسم والعنوان المحفوظ', st_recent:'آخر عمليات البحث', st_orders:'طلباتي على هالجهاز', st_clear:'امسح', st_sure:'أكيد؟', st_done:'انمسح', st_help:'المساعدة والقانون', st_ver:'النسخة', st_nosupp:'هالمتصفح ما بيدعم الإشعارات.', st_denied:'الإشعارات مسكّرة. فتّحها من إعدادات المتصفح.', st_notok:'تمام! رح يجيك إشعار.', paused:'الطلبات موقّفة مؤقتاً', pausedhint:'رجعنا قريباً. جرّب بعد شوي.', e_paused:'الطلبات موقّفة مؤقتاً. جرّب بعد شوي.', needacc:'سجّل دخول أو اعمل حساب لتكمل الطلب.', closednow:'المحلات مسكّرة هلق. جرّب وقت الدوام.', e_locked:'الطلب خلص أو صار بالطريق، ما فيك تغيّر فيه.', e_needcode:'لازم كود التسليم من الزبون.', e_badcode:'الكود غلط.', proof:'صورة التسليم', eta_drive:'بيوصل لعندك تقريباً بعد', min:'دقيقة', eta_deliv:'التوصيل المتوقع:', eta_pick:'جاهز للاستلام تقريباً:', eta_sched:'الموعد:', eta_soon:'قرّب يجهز طلبك.', code_d:'كود التسليم: عطيه للسائق لما يوصل', code_p:'كود الاستلام: قولو بالمحل أو ورجيهن الـ QR', posat:'آخر تحديث للموقع:', posnone:'السائق بالطريق. موقعو رح يبين هون بعد شوي.', forgot:'نسيت كلمة السر؟', forgot_t:'كلمة سر جديدة', forgot_p:'اكتب الإيميل تبع حسابك. منبعتلك رابط تحط فيه كلمة سر جديدة.', forgot_send:'ابعت الرابط', forgot_ok:'إذا في حساب بهالإيميل، وصلك رابط. شوف الإيميل (وكمان مجلد Spam). الرابط شغال ساعة وحدة.', reset_t:'حط كلمة سر جديدة', newpass2:'أعد كلمة السر', e_nomatch:'كلمتين السر مش متل بعض.', e_resetbad:'الرابط مش صالح أو انتهى. اطلب رابط جديد.', reset_ok:'تغيّرت كلمة السر.',
   recent:'بحثت مؤخراً', suggest:'جرّب', deliveryfrom:'التوصيل من', pickuphere:'استلام من Steintorweg 4', orderas:'الطلب باسم', change:'تغيير', clear:'مسح',
   hmin:'دقيقة', addcart:'أضف', options:'الخيارات', orders:'طلبات', cancelnote:'لإلغاء الطلب اتصل بالمحل.', whatsapp:'واتساب', viewcart:'عرض السلة'
  },
@@ -95,7 +95,7 @@ const T = {
   noresults:'Dazu haben wir nichts gefunden.', vatincl:'Alle Preise inkl. MwSt.', orderno:'Bestellnummer', light:'Heller Modus', dark:'Dunkler Modus', lang:'العربية', langs:'ع',
   login:'Anmelden', register:'Konto erstellen', password:'Passwort', newpass:'Neues Passwort', oldpass:'Aktuelles Passwort', logout:'Abmelden', save:'Speichern', saved:'Gespeichert',
   welcome:'Hallo', profile:'Meine Daten', address:'Lieferadresse', noorders:'Du hast noch nichts bestellt.', reorder:'Erneut bestellen', added:'Im Warenkorb', loginhint:'Melde dich an, um deine Adresse zu speichern und Bestellungen zu sehen.',
-  orguest:'oder ohne Konto weiter', haveacc:'Schon ein Konto?', noacc:'Noch kein Konto?', changepass:'Passwort ändern', e_locked:'Die Bestellung ist abgeschlossen oder unterwegs und kann nicht mehr geändert werden.', e_needcode:'Dafür brauchst du den Übergabe-Code vom Kunden.', e_badcode:'Code falsch.', proof:'Foto der Übergabe', eta_drive:'Ankunft in etwa', min:'Min.', eta_deliv:'Voraussichtliche Lieferung:', eta_pick:'Abholbereit voraussichtlich:', eta_sched:'Termin:', eta_soon:'Deine Bestellung ist gleich fertig.', code_d:'Übergabe-Code: nenne ihn dem Fahrer bei der Ankunft', code_p:'Abhol-Code: im Geschäft nennen oder QR-Code zeigen', posat:'Standort aktualisiert:', posnone:'Der Fahrer ist unterwegs. Sein Standort erscheint hier gleich.', forgot:'Passwort vergessen?', forgot_t:'Neues Passwort', forgot_p:'Gib die E-Mail deines Kontos ein. Wir schicken dir einen Link, mit dem du ein neues Passwort festlegst.', forgot_send:'Link senden', forgot_ok:'Wenn es ein Konto mit dieser E-Mail gibt, ist ein Link unterwegs. Schau ins Postfach (auch in den Spam-Ordner). Der Link gilt eine Stunde.', reset_t:'Neues Passwort festlegen', newpass2:'Passwort wiederholen', e_nomatch:'Die Passwörter stimmen nicht überein.', e_resetbad:'Der Link ist ungültig oder abgelaufen. Fordere einen neuen an.', reset_ok:'Passwort geändert.',
+  orguest:'oder ohne Konto weiter', haveacc:'Schon ein Konto?', noacc:'Noch kein Konto?', changepass:'Passwort ändern', hx_t1:'Fünf Geschäfte', hx_t2:'unter einem Dach', hx_sub:'Supermarkt, Restaurant, Süßes, Metzgerei und Käse & Oliven. Bestell bei allen mit einer Bestellung, wir liefern alles in einer Fahrt.', hm_open:'{n} von {m} Geschäften haben jetzt geöffnet', hm_psg:'Die Passage', hm_psg2:'Geschäft wählen und loslegen', hm_feat:'Heute empfohlen', hm_how:'So bestellst du', hm_s1:'Aus jedem Geschäft wählen', hm_s1d:'Leg Produkte aus mehreren Geschäften in einen Warenkorb.', hm_s2:'Einmal bestellen', hm_s2d:'Eine Rechnung und eine Zahlung für alles.', hm_s3:'Liefern oder abholen', hm_s3d:'Wir bringen es zu dir, oder du holst es in der Passage ab.', hm_fee:'Lieferung ab', hm_nodeliv:'Nur Abholung im Geschäft.', hm_map:'In Karte öffnen', settings:'Einstellungen', st_look:'Sprache & Darstellung', st_lang:'Sprache', st_theme:'Farben', st_l:'Hell', st_d:'Dunkel', st_auto:'Automatisch', st_big:'Größere Schrift', st_big2:'Leichter zu lesen', st_calm:'Weniger Bewegung', st_calm2:'Schaltet Animationen ab', st_notify:'Mitteilungen', st_not:'Mitteilung bei Statusänderung', st_not2:'Solange die Bestellseite offen ist', st_vib:'Vibration', st_vib2:'Handy vibriert bei Mitteilungen', st_app:'App installieren', st_app2:'Lege die Seite wie eine App auf den Startbildschirm, sie öffnet dann schneller.', st_ios:'iPhone: In Safari unten auf „Teilen“ tippen, dann „Zum Home-Bildschirm“.', st_install:'Auf Startbildschirm installieren', st_inst2:'Im Browser-Menü (⋮) „Zum Startbildschirm hinzufügen“ wählen.', st_delacc:'Konto löschen', st_del2:'Dein Konto und deine persönlichen Daten werden gelöscht. Alte Rechnungen bleiben beim Geschäft gespeichert, weil das Gesetz es verlangt.', st_deleted:'Dein Konto wurde gelöscht.', st_data:'Daten auf diesem Gerät', st_data2:'Diese Daten liegen nur auf deinem Handy, damit das Bestellen schneller geht.', st_saved:'Gespeicherter Name und Adresse', st_recent:'Letzte Suchen', st_orders:'Meine Bestellungen auf diesem Gerät', st_clear:'Löschen', st_sure:'Sicher?', st_done:'Gelöscht', st_help:'Hilfe & Rechtliches', st_ver:'Version', st_nosupp:'Dieser Browser unterstützt keine Mitteilungen.', st_denied:'Mitteilungen sind blockiert. Bitte in den Browser-Einstellungen erlauben.', st_notok:'Fertig! Du bekommst eine Mitteilung.', paused:'Bestellungen sind gerade pausiert', pausedhint:'Wir sind gleich wieder da. Bitte später nochmal versuchen.', e_paused:'Bestellungen sind gerade pausiert. Bitte später nochmal versuchen.', needacc:'Bitte melde dich an oder erstelle ein Konto, um zu bestellen.', closednow:'Die Geschäfte haben gerade geschlossen. Bitte während der Öffnungszeiten bestellen.', e_locked:'Die Bestellung ist abgeschlossen oder unterwegs und kann nicht mehr geändert werden.', e_needcode:'Dafür brauchst du den Übergabe-Code vom Kunden.', e_badcode:'Code falsch.', proof:'Foto der Übergabe', eta_drive:'Ankunft in etwa', min:'Min.', eta_deliv:'Voraussichtliche Lieferung:', eta_pick:'Abholbereit voraussichtlich:', eta_sched:'Termin:', eta_soon:'Deine Bestellung ist gleich fertig.', code_d:'Übergabe-Code: nenne ihn dem Fahrer bei der Ankunft', code_p:'Abhol-Code: im Geschäft nennen oder QR-Code zeigen', posat:'Standort aktualisiert:', posnone:'Der Fahrer ist unterwegs. Sein Standort erscheint hier gleich.', forgot:'Passwort vergessen?', forgot_t:'Neues Passwort', forgot_p:'Gib die E-Mail deines Kontos ein. Wir schicken dir einen Link, mit dem du ein neues Passwort festlegst.', forgot_send:'Link senden', forgot_ok:'Wenn es ein Konto mit dieser E-Mail gibt, ist ein Link unterwegs. Schau ins Postfach (auch in den Spam-Ordner). Der Link gilt eine Stunde.', reset_t:'Neues Passwort festlegen', newpass2:'Passwort wiederholen', e_nomatch:'Die Passwörter stimmen nicht überein.', e_resetbad:'Der Link ist ungültig oder abgelaufen. Fordere einen neuen an.', reset_ok:'Passwort geändert.',
   recent:'Zuletzt gesucht', suggest:'Vorschläge', deliveryfrom:'Lieferung ab', pickuphere:'Abholung am Steintorweg 4', orderas:'Bestellung als', change:'Ändern', clear:'Löschen',
   hmin:'Min.', addcart:'Hinzufügen', options:'Optionen', orders:'Bestellungen', cancelnote:'Zum Stornieren bitte das Geschäft anrufen.', whatsapp:'WhatsApp', viewcart:'Warenkorb ansehen'
  }
@@ -110,7 +110,18 @@ const DAYS = ['so','mo','di','mi','do','fr','sa'];
 const ls = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
 const S = { lang: ls.get('so_lang2', 'ar'), shops: [], cats: [], products: [], settings: {}, ratings: {}, cart: ls.get('so_cart', []), staff: null, cust: null, ctoken: ls.get('so_ct', null), loaded: false };
 if (!Array.isArray(S.cart)) S.cart = [];
-if (ls.get('so_dark', false)) document.body.classList.add('dark');
+/* device preferences: theme, text size, motion */
+function applyPrefs() {
+  const th = ls.get('so_theme', ls.get('so_dark', false) ? 'dark' : 'light');
+  const dark = th === 'dark' || (th === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+  document.body.classList.toggle('dark', !!dark);
+  document.documentElement.classList.toggle('bigtext', ls.get('so_big', false));
+  document.documentElement.classList.toggle('calm', ls.get('so_calm', false));
+}
+applyPrefs();
+try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyPrefs); } catch (_) {}
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; });
 
 const t = k => (T[S.lang][k] !== undefined ? T[S.lang][k] : (T.de[k] !== undefined ? T.de[k] : k));
 const L = (o, f) => o ? (o[f + '_' + S.lang] || o[f + '_' + (S.lang === 'ar' ? 'de' : 'ar')] || '') : '';
@@ -151,7 +162,7 @@ function errMsg(e) {
   const k = m.split(':')[0].trim();
   const rest = m.includes(':') ? m.slice(m.indexOf(':') + 1).trim() : '';
   const map = { zone:'e_zone', min:'e_min', coupon:'e_coupon', coupon_min:'e_coupon_min', stock:'e_stock', closed:'e_closed', contact:'e_contact', address:'e_address', product:'e_product',
-    phone:'e_phone', payment:'e_payment', time:'e_time', option:'e_option', cakedate:'e_cakedate', rate_limited:'e_rate', email:'e_email', exists:'e_exists', login:'e_login', session:'e_session', password:'e_password', resetbad:'e_resetbad', locked:'e_locked', needcode:'e_needcode', badcode:'e_badcode' };
+    phone:'e_phone', payment:'e_payment', time:'e_time', option:'e_option', cakedate:'e_cakedate', rate_limited:'e_rate', email:'e_email', exists:'e_exists', login:'e_login', session:'e_session', password:'e_password', resetbad:'e_resetbad', paused:'e_paused', needaccount:'needacc', locked:'e_locked', needcode:'e_needcode', badcode:'e_badcode' };
   if (map[k]) return t(map[k]) + (rest ? ' ' + (k === 'min' || k === 'coupon_min' ? money(rest) : rest) : '');
   if (/fetch|network/i.test(m)) return S.lang === 'ar' ? 'ما في اتصال بالإنترنت.' : 'Keine Internetverbindung.';
   return t('err');
@@ -315,12 +326,12 @@ function drawer() {
   d.innerHTML = `<div class="pn"><div class="who"><img src="logo.png" alt=""></div>
    <a href="#/">${ic('home')} ${esc(t('home'))}</a>
    ${visibleShops().map(s => `<a href="#/shop/${encodeURIComponent(s.id)}">${shopIc(s.type)} ${esc(L(s, 'name'))}</a>`).join('')}
-   <hr><a href="#/cart">${ic('bag')} ${esc(t('cart'))}</a><a href="#/account">${ic('user')} ${esc(t('account'))}</a>
+   <hr><a href="#/cart">${ic('bag')} ${esc(t('cart'))}</a><a href="#/account">${ic('user')} ${esc(t('account'))}</a><a href="#/settings">${ic('settings')} ${esc(t('settings'))}</a>
    <button class="m" id="dTheme">${dark ? ic('sun') + ' ' + esc(t('light')) : ic('moon') + ' ' + esc(t('dark'))}</button>
 </div>`;
   d.onclick = e => { if (e.target === d || e.target.closest('a')) d.remove(); };
   document.body.appendChild(d);
-  $('#dTheme', d).onclick = () => { document.body.classList.toggle('dark'); ls.set('so_dark', document.body.classList.contains('dark')); d.remove(); };
+  $('#dTheme', d).onclick = () => { ls.set('so_theme', document.body.classList.contains('dark') ? 'light' : 'dark'); applyPrefs(); d.remove(); };
 }
 
 /* ---------- product card ---------- */
@@ -445,23 +456,48 @@ function searchSheet(initial) {
 }
 
 /* ---------- views: customer ---------- */
+const ARCH_SVG = '<svg class="hx-arc" viewBox="0 0 1000 220" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.4">' + [0, 1, 2, 3, 4].map(i => { const x = 20 + i * 196; return `<path d="M${x} 220V110a78 78 0 0 1 156 0v110"/><path d="M${x + 18} 220V114a60 60 0 0 1 120 0v106" opacity=".55"/>`; }).join('') + '<path d="M0 219.3h1000"/></g></svg>';
 function vHome() {
   const s = S.settings;
   const ann = LL(s.announce_ar, s.announce_de);
   const fees = (s.zones || []).map(z => +z.fee).filter(x => !isNaN(x));
-  const shopsHtml = visibleShops().map(sh => { const o = openLabel(sh); const r = S.ratings[sh.id]; const cv = shopCover(sh);
-    return `<a class="stall" href="#/shop/${encodeURIComponent(sh.id)}"><div class="ph" style="${bgImg(cv)}"><span class="st"><span class="state ${o.on ? '' : 'off'}">${esc(o.txt)}</span></span></div>
-     <div class="bd"><h3>${esc(L(sh, 'name'))}</h3><div class="ds">${esc(L(sh, 'desc'))}</div>${r ? `<div class="rt">${ic('star', 's')} ${r.avg} · ${r.n}</div>` : ''}</div></a>`; }).join('');
-  const rails = visibleShops().map(sh => { const ps = visibleProducts(sh.id).filter(p => !soldOut(p)); const list = ps.filter(p => p.featured).concat(ps.filter(p => !p.featured)).slice(0, 10); if (!list.length) return '';
-    return `<div class="sec"><h2>${esc(L(sh, 'name'))}</h2><a href="#/shop/${encodeURIComponent(sh.id)}">${esc(t('seeall'))} ${ic(S.lang === 'ar' ? 'back' : 'fwd', 's')}</a></div><div class="rail">${list.map(prodCard).join('')}</div>`; }).join('');
-  page(`<section class="hero"><div class="in"><img src="logo.png" alt="بيت كرم – Stein & Olive"><p>${esc(t('hero'))}</p>
-     <div class="sbox">${ic('search')}<input type="search" id="heroQ" placeholder="${esc(t('searchph'))}" autocomplete="off" readonly></div>
-     <div class="facts">${s.delivery !== false && fees.length ? `<span>${ic('truck', 's')} ${esc(t('deliveryfrom'))} ${money(Math.min(...fees))}</span>` : ''}${s.pickup !== false ? `<span>${ic('store', 's')} ${esc(t('pickuphere'))}</span>` : ''}</div></div></section>
-   ${ann ? `<div class="ann">${esc(ann)}</div>` : ''}
-   <div class="sec"><h2>${esc(t('shops'))}</h2></div><div class="stalls">${shopsHtml}</div>
-   ${rails}`, { tab: 'home' });
+  const mins = (s.zones || []).map(z => +z.min).filter(x => !isNaN(x));
+  const shops = visibleShops();
+  const openN = shops.filter(isOpenNow).length;
+  const arches = shops.map(sh => { const o = openLabel(sh); const r = S.ratings[sh.id]; const cv = shopCover(sh);
+    return `<a class="arch" href="#/shop/${encodeURIComponent(sh.id)}"><div class="arch-door"><div class="arch-ph" style="${bgImg(cv)}">${cv ? '' : shopIc(sh.type)}</div></div>
+      <div class="arch-bd"><h3>${esc(L(sh, 'name'))}</h3><p>${esc(L(sh, 'desc'))}</p>
+      <div class="arch-meta"><span class="dot ${o.on ? 'on' : ''}"></span><span>${esc(o.on ? t('open') : o.txt)}</span>${r ? `<span class="rt">${ic('star', 's')} ${r.avg}</span>` : ''}</div></div></a>`; }).join('');
+  const all = shops.flatMap(sh => visibleProducts(sh.id).filter(p => !soldOut(p)));
+  const feat = all.filter(p => p.featured && p.image_url).slice(0, 5);
+  const hero = feat[0];
+  const featHtml = hero ? `<section class="hm-feat"><div class="hm-h"><h2>${esc(t('hm_feat'))}</h2></div>
+     <div class="feat-grid"><div class="feat-big" data-p="${esc(hero.id)}" role="button" tabindex="0"><div class="feat-im" style="${bgImg(hero.image_url)}"></div>
+       <div class="feat-cap"><span class="feat-shop">${esc(L(shopById(hero.shop_id) || {}, 'name'))}</span><h3>${esc(L(hero, 'name'))}</h3><div class="feat-row"><b>${priceLabel(hero)}</b><button class="btn s" data-qa="${esc(hero.id)}">${ic('plus', 's')} ${esc(t('addcart'))}</button></div></div></div>
+       <div class="feat-list">${feat.slice(1).map(p => `<div class="frow" data-p="${esc(p.id)}" role="button" tabindex="0"><div class="thumb" style="${bgImg(p.image_url)}"></div><div class="t"><b>${esc(L(p, 'name'))}</b><small>${esc(L(shopById(p.shop_id) || {}, 'name'))}</small></div><span class="pr">${priceLabel(p)}</span><button class="qa2" data-qa="${esc(p.id)}" aria-label="${esc(t('addcart'))}">${ic('plus', 's')}</button></div>`).join('')}</div></div></section>` : '';
+  const rails = shops.map(sh => { const ps = visibleProducts(sh.id).filter(p => !soldOut(p)); const list = ps.filter(p => p.featured).concat(ps.filter(p => !p.featured)).slice(0, 8); if (!list.length) return '';
+    const o = openLabel(sh);
+    return `<section class="hm-rail"><div class="hm-h"><a class="hm-shop" href="#/shop/${encodeURIComponent(sh.id)}"><span class="mini-arch">${shopIc(sh.type, 's')}</span><span><h2>${esc(L(sh, 'name'))}</h2><small><span class="dot ${o.on ? 'on' : ''}"></span> ${esc(o.txt)}</small></span></a><a class="more" href="#/shop/${encodeURIComponent(sh.id)}">${esc(t('seeall'))} ${ic(S.lang === 'ar' ? 'back' : 'fwd', 's')}</a></div><div class="rail">${list.map(prodCard).join('')}</div></section>`; }).join('');
+  const steps = [['store', t('hm_s1'), t('hm_s1d')], ['bag', t('hm_s2'), t('hm_s2d')], ['truck', t('hm_s3'), t('hm_s3d')]];
+  const artImgs = (feat.length >= 3 ? feat : all.filter(p => p.image_url)).slice(0, 3).map(p => p.image_url);
+  page(`<section class="hx">${ARCH_SVG}${artImgs.length === 3 ? `<div class="hx-art" aria-hidden="true">${artImgs.map((u, i) => `<span class="hx-w w${i}"><i style="${bgImg(u)}"></i></span>`).join('')}</div>` : ''}<div class="hx-in">
+      <p class="hx-kick">${esc(s.address || 'Steintorweg 4, 20099 Hamburg')}</p>
+      <h1>${esc(t('hx_t1'))}<br><span>${esc(t('hx_t2'))}</span></h1>
+      <p class="hx-sub">${esc(t('hx_sub'))}</p>
+      <div class="sbox hx-search">${ic('search')}<input type="search" id="heroQ" placeholder="${esc(t('searchph'))}" autocomplete="off" readonly></div>
+      <div class="hx-facts">${s.delivery !== false && fees.length ? `<span>${ic('truck', 's')} ${esc(t('deliveryfrom'))} ${money(Math.min(...fees))}</span>` : ''}${s.pickup !== false ? `<span>${ic('store', 's')} ${esc(t('pickuphere'))}</span>` : ''}<span><i class="dot ${openN ? 'on' : ''}"></i> ${esc(openN ? t('hm_open').replace('{n}', openN).replace('{m}', shops.length) : t('closed'))}</span></div>
+    </div></section>
+   ${s.orders_paused ? `<div class="ann warn">${ic('clock', 's')} ${esc(LL(s.pause_ar, s.pause_de) || t('paused'))}</div>` : ann ? `<div class="ann">${esc(ann)}</div>` : ''}
+   <section class="hm-psg"><div class="hm-h"><h2>${esc(t('hm_psg'))}</h2><small>${esc(t('hm_psg2'))}</small></div><div class="arches">${arches}</div></section>
+   ${featHtml}
+   ${rails}
+   <section class="hm-how"><div class="hm-h"><h2>${esc(t('hm_how'))}</h2></div><ol class="how">${steps.map(x => `<li><span class="how-ic">${ic(x[0])}</span><b>${esc(x[1])}</b><p>${esc(x[2])}</p></li>`).join('')}</ol></section>
+   <section class="hm-info"><div class="info-c"><h3>${ic('truck', 's')} ${esc(t('deliv'))}</h3><p>${fees.length ? `${esc(t('hm_fee'))} ${money(Math.min(...fees))}${mins.length ? ` · ${esc(t('minorder'))} ${money(Math.min(...mins))}` : ''}` : esc(t('hm_nodeliv'))}</p><p class="note">${esc((s.zones || []).map(z => z.plz).join(', ').replace(/,\s*/g, ', '))}</p></div>
+     <div class="info-c"><h3>${ic('pin', 's')} ${esc(t('pickup'))}</h3><p>${esc(s.address || '')}</p><a class="lnk" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address || 'Steintorweg 4 Hamburg')}">${esc(t('hm_map'))}</a></div>
+     <div class="info-c"><h3>${ic('chat', 's')} ${esc(t('contact'))}</h3>${s.phone ? `<p><a href="tel:${esc(s.phone)}">${esc(s.phone)}</a></p>` : ''}${s.whatsapp ? `<p><a target="_blank" rel="noopener noreferrer" href="https://wa.me/${esc(waNum(s.whatsapp))}">WhatsApp</a></p>` : ''}${s.email ? `<p><a href="mailto:${esc(s.email)}">${esc(s.email)}</a></p>` : ''}</div></section>`, { tab: 'home' });
   $('#heroQ').onfocus = $('#heroQ').onclick = () => searchSheet();
   bindCards($('#main'));
+  $$('.feat-big[data-p],.frow[data-p]').forEach(el => { el.onclick = e => { if (e.target.closest('[data-qa]')) return; productSheet(el.dataset.p); }; el.onkeydown = e => { if (e.key === 'Enter') productSheet(el.dataset.p); }; });
 }
 function vShop(id) {
   const sh = shopById(id); if (!sh || !sh.active) { location.hash = '#/'; return; }
@@ -523,6 +559,10 @@ async function vCheckout() {
   const st = { mode: saved.mode && ((saved.mode === 'delivery' && canDel) || (saved.mode === 'pickup' && canPick)) ? saved.mode : (canDel ? 'delivery' : 'pickup'), when: 'asap', pay: 'cash' };
   const allOpen = cartShops().every(id => isOpenNow(shopById(id)));
   if (!allOpen) st.when = 'later';
+  const canSched = s.allow_scheduled !== false;
+  if (s.orders_paused) { page(`<div class="empty">${ic('clock')}<h2 style="color:var(--ink);font-size:20px">${esc(t('paused'))}</h2><p>${esc(LL(s.pause_ar, s.pause_de) || t('pausedhint'))}</p><a class="btn o" href="#/cart">${esc(t('back'))}</a></div>`, { noBar: 1 }); return; }
+  if (s.require_account && !c) { location.hash = '#/account?next=checkout'; toast(t('needacc')); return; }
+  if (!allOpen && !canSched) { page(`<div class="empty">${ic('clock')}<h2 style="color:var(--ink);font-size:20px">${esc(t('e_closed'))}</h2><p>${esc(t('closednow'))}</p><a class="btn o" href="#/cart">${esc(t('back'))}</a></div>`, { noBar: 1 }); return; }
   const payOpts = [['stripe', !!pay.stripe && S.stripeReady], ['cash', pay.cash !== false], ['card', !!pay.card], ['transfer', !!pay.transfer && !!s.bank_iban], ['paypal', !!pay.paypal && !!pay.paypal_me]].filter(x => x[1]).map(x => x[0]);
   if (!payOpts.includes(st.pay)) st.pay = payOpts[0];
   const payIc = { cash: 'receipt', card: 'tag', paypal: 'globe', transfer: 'store', stripe: 'tag' };
@@ -539,7 +579,7 @@ async function vCheckout() {
      <div id="zinfo"></div>
      <label class="f"><span>${esc(t('addrnote'))}</span><input type="text" id="cAN" maxlength="200" value="${esc(saved.address_note || '')}"></label></div>
    <div class="card"><h3>${esc(t('when'))}</h3>${!allOpen ? `<div class="warnbox">${ic('clock', 's')}<span>${esc(t('schedreq'))}</span></div>` : ''}
-    ${allOpen ? `<div class="seg" id="when"><button data-v="asap">${esc(t('asap'))}</button><button data-v="later">${esc(t('later'))}</button></div>` : ''}
+    ${allOpen && canSched ? `<div class="seg" id="when"><button data-v="asap">${esc(t('asap'))}</button><button data-v="later">${esc(t('later'))}</button></div>` : allOpen ? `<div class="note">${esc(t('asap'))}</div>` : ''}
     <input type="datetime-local" id="cT" style="margin-top:10px" hidden></div>
    <div class="card"><h3>${esc(t('payment'))}</h3>${payOpts.map(v => `<label class="opt"><input type="radio" name="pay" value="${v}" ${v === st.pay ? 'checked' : ''}>${ic(payIc[v])}<span>${esc(t(v))}</span></label>`).join('')}
     <div class="note" id="ppn" hidden>${esc(t('paypalnote'))}</div><div class="note" id="trn" hidden>${esc(t('transferhint'))}</div></div>
@@ -585,6 +625,7 @@ async function vCheckout() {
       if (bad.length) { bad.forEach(id => $(id).classList.add('bad')); $(bad[0]).focus(); return toast(t('e_address'), 1); }
     }
     if (!$('#cA').checked) return toast(t('e_agree'), 1);
+    if (+s.min_total && cartTotals().sub < +s.min_total) return toast(t('e_min') + ' ' + money(s.min_total), 1);
     if (!allow('order', 4, 120)) return;
     let sched = '';
     if (st.when === 'later') { const d = new Date($('#cT').value); if (isNaN(d) || d < new Date(Date.now() + 20 * 60000)) return toast(t('e_time'), 1); sched = d.toISOString(); }
@@ -616,6 +657,12 @@ async function payStripe(token, btn) {
     toast(j && j.error === 'paid' ? t('paid') : t('payfail'), 1);
   } catch (_) { toast(t('payfail'), 1); }
   if (btn) btn.disabled = false;
+}
+function notifyStatus(o) {
+  if (ls.get('so_cvib', true) && navigator.vibrate) navigator.vibrate([180, 90, 180]);
+  if (!ls.get('so_cnotify', false) || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const opt = { body: t('st_' + o.status) + ' · #' + o.id, icon: 'icon-192.png', tag: 'so-track-' + o.id };
+  navigator.serviceWorker && navigator.serviceWorker.getRegistration().then(r => r ? r.showNotification('Stein & Olive', opt) : new Notification('Stein & Olive', opt)).catch(() => {});
 }
 let trackTimer = null;
 /* ---------- live map (Leaflet, OpenStreetMap, OSRM) ---------- */
@@ -705,6 +752,8 @@ async function vTrack(token) {
     if (location.hash.indexOf(token) < 0) { clearInterval(trackTimer); return; }
     if (error || !o) { if (first) page(`<div class="empty">${ic('alert')}<p>${esc(error ? errMsg(error) : t('err'))}</p></div>`, { noBar: 1 }); return; }
     if (!first && draw.last === JSON.stringify(o)) return; draw.last = JSON.stringify(o);
+    if (!first && draw.st && draw.st !== o.status) notifyStatus(o);
+    draw.st = o.status;
     if (!first && document.activeElement && document.activeElement.closest && document.activeElement.closest('.rv')) return;
     const steps = o.mode === 'delivery' ? STEPS_D : STEPS_P; const idx = steps.indexOf(o.status);
     const shops = [...new Set(o.items.map(i => i.shop_id))];
@@ -824,6 +873,61 @@ async function vInvoice(token) {
   if (error || !o) { page(`<div class="empty">${esc(error ? errMsg(error) : t('err'))}</div>`, { noBar: 1 }); return; }
   page(`<div class="acts noprint" style="margin-bottom:12px"><a class="btn o s" href="#/track/${esc(token)}">${ic(S.lang === 'ar' ? 'fwd' : 'back', 's')} ${esc(t('back'))}</a><button class="btn s" id="pr">${ic('print', 's')} ${esc(t('print'))}</button></div>${invoiceHtml(o)}`, { noBar: 1 });
   $('#pr').onclick = () => window.print();
+}
+
+/* ---------- customer settings ---------- */
+function vSettings() {
+  const s = S.settings; const c = S.cust;
+  const th = ls.get('so_theme', ls.get('so_dark', false) ? 'dark' : 'light');
+  const seg = (id, val, opts) => `<div class="seg" id="${id}">${opts.map(o => `<button data-v="${o[0]}" class="${o[0] === val ? 'on' : ''}">${o[1]}</button>`).join('')}</div>`;
+  const tg = (id, on, lab, sub) => `<label class="tgl"><span><b>${esc(lab)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</span><input type="checkbox" id="${id}" ${on ? 'checked' : ''}><i></i></label>`;
+  const sv = ls.get('so_cust', {}); const nOrders = ls.get('so_orders', []).length; const nRec = ls.get('so_recent', []).length;
+  const ios = /iPhone|iPad/.test(navigator.userAgent); const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  const dw = s.whatsapp ? waNum(s.whatsapp) : '';
+  page(`<div class="sec" style="margin-top:6px"><h2>${esc(t('settings'))}</h2></div>
+   <div class="card setg"><h3>${ic('globe', 's')} ${esc(t('st_look'))}</h3>
+     <div class="f"><span>${esc(t('st_lang'))}</span>${seg('sLang', S.lang, [['ar', 'العربية'], ['de', 'Deutsch']])}</div>
+     <div class="f"><span>${esc(t('st_theme'))}</span>${seg('sTheme', th, [['light', ic('sun', 's') + ' ' + esc(t('st_l'))], ['dark', ic('moon', 's') + ' ' + esc(t('st_d'))], ['auto', esc(t('st_auto'))]])}</div>
+     ${tg('sBig', ls.get('so_big', false), t('st_big'), t('st_big2'))}
+     ${tg('sCalm', ls.get('so_calm', false), t('st_calm'), t('st_calm2'))}</div>
+   <div class="card setg"><h3>${ic('bell', 's')} ${esc(t('st_notify'))}</h3>
+     ${tg('sNot', ls.get('so_cnotify', false) && 'Notification' in window && Notification.permission === 'granted', t('st_not'), t('st_not2'))}
+     ${tg('sVib', ls.get('so_cvib', true), t('st_vib'), t('st_vib2'))}</div>
+   ${standalone ? '' : `<div class="card setg"><h3>${ic('home', 's')} ${esc(t('st_app'))}</h3><p class="note">${esc(t('st_app2'))}</p>
+     ${ios ? `<p class="note">${esc(t('st_ios'))}</p>` : `<button class="btn s" id="sInst">${esc(t('st_install'))}</button>`}</div>`}
+   <div class="card setg"><h3>${ic('user', 's')} ${esc(t('account'))}</h3>
+     ${c ? `<div class="sum"><span>${esc(c.name || '')}</span><span dir="ltr">${esc(c.email)}</span></div><div class="acts" style="margin-top:8px"><a class="btn s o" href="#/account">${esc(t('profile'))}</a><button class="btn s r" id="sDel">${esc(t('st_delacc'))}</button></div>`
+          : `<p class="note">${esc(t('loginhint'))}</p><a class="btn s" href="#/account">${esc(t('login'))}</a>`}</div>
+   <div class="card setg"><h3>${ic('box', 's')} ${esc(t('st_data'))}</h3><p class="note">${esc(t('st_data2'))}</p>
+     <div class="li"><div class="t"><b>${esc(t('st_saved'))}</b><small>${esc([sv.name, sv.street, sv.plz].filter(Boolean).join(', ') || '—')}</small></div><button class="btn s o" data-clr="so_cust" ${sv.name || sv.street ? '' : 'disabled'}>${esc(t('st_clear'))}</button></div>
+     <div class="li"><div class="t"><b>${esc(t('st_recent'))}</b><small>${nRec}</small></div><button class="btn s o" data-clr="so_recent" ${nRec ? '' : 'disabled'}>${esc(t('st_clear'))}</button></div>
+     <div class="li"><div class="t"><b>${esc(t('st_orders'))}</b><small>${nOrders}</small></div><button class="btn s o" data-clr="so_orders" ${nOrders ? '' : 'disabled'}>${esc(t('st_clear'))}</button></div></div>
+   <div class="card setg"><h3>${ic('chat', 's')} ${esc(t('st_help'))}</h3>
+     <div class="acts">${dw ? `<a class="btn s o" target="_blank" rel="noopener noreferrer" href="https://wa.me/${esc(dw)}">${ic('chat', 's')} WhatsApp</a>` : ''}${s.phone ? `<a class="btn s o" href="tel:${esc(s.phone)}">${ic('phone', 's')} ${esc(s.phone)}</a>` : ''}${s.email ? `<a class="btn s o" href="mailto:${esc(s.email)}">${esc(s.email)}</a>` : ''}</div>
+     <div class="acts" style="margin-top:10px"><a class="lnk" href="#/impressum">Impressum</a><a class="lnk" href="#/datenschutz">${esc(t('privacy'))}</a><a class="lnk" href="#/agb">${esc(t('terms'))}</a></div></div>
+   <p class="note" style="text-align:center">Stein & Olive · ${esc(t('st_ver'))} 2026.11.22</p>`, { tab: 'account' });
+  $$('#sLang button').forEach(b => b.onclick = () => { setLang(b.dataset.v); route(); });
+  $$('#sTheme button').forEach(b => b.onclick = () => { ls.set('so_theme', b.dataset.v); applyPrefs(); $$('#sTheme button').forEach(x => x.classList.toggle('on', x === b)); });
+  $('#sBig').onchange = e => { ls.set('so_big', e.target.checked); applyPrefs(); };
+  $('#sCalm').onchange = e => { ls.set('so_calm', e.target.checked); applyPrefs(); };
+  $('#sVib').onchange = e => ls.set('so_cvib', e.target.checked);
+  $('#sNot').onchange = async e => {
+    if (!e.target.checked) { ls.set('so_cnotify', false); return; }
+    if (!('Notification' in window)) { e.target.checked = false; return toast(t('st_nosupp'), 1); }
+    const p = await Notification.requestPermission();
+    if (p !== 'granted') { e.target.checked = false; return toast(t('st_denied'), 1); }
+    ls.set('so_cnotify', true); toast(t('st_notok'));
+  };
+  if ($('#sInst')) $('#sInst').onclick = async () => { if (!installEvt) return toast(t('st_inst2')); installEvt.prompt(); try { await installEvt.userChoice; } catch (_) {} installEvt = null; };
+  $$('[data-clr]').forEach(b => b.onclick = () => { if (!confirm(t('st_sure'))) return; ls.set(b.dataset.clr, b.dataset.clr === 'so_cust' ? {} : []); toast(t('st_done')); vSettings(); });
+  if ($('#sDel')) $('#sDel').onclick = () => modal(`<button class="ib x" data-close>${ic('x')}</button><h3>${esc(t('st_delacc'))}</h3><p class="note">${esc(t('st_del2'))}</p>
+      <label class="f"><span>${esc(t('password'))}</span><input type="password" id="dPw" autocomplete="current-password"></label><button class="btn r full" id="dGo">${esc(t('st_delacc'))}</button>`, m => {
+    $('#dGo', m).onclick = async () => {
+      const { data, error } = await sb.rpc('customer_delete', { p_token: S.ctoken, p_password: $('#dPw', m).value });
+      if (error || !data) return toast(errMsg(error || 'login'), 1);
+      setCustToken(null); S.cust = null; closeModal(); toast(t('st_deleted')); location.hash = '#/';
+    };
+  });
 }
 
 /* ---------- password reset ---------- */
@@ -1003,6 +1107,7 @@ async function route() {
   if (r === 'orders') { location.hash = '#/account'; return; }
   if (r === 'account') return vAccount(a);
   if (r === 'reset') return vReset(a);
+  if (r === 'settings') return vSettings();
   if (r === 'impressum' || r === 'datenschutz' || r === 'agb') return vLegal(r);
   if (r === 'screen') return vScreen(decodeURIComponent(a || ''));
   return vHome();
