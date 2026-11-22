@@ -68,7 +68,7 @@ const T = {
   noresults:'ما لقينا شي بهالاسم.', vatincl:'كل الأسعار شاملة الضريبة.', orderno:'رقم الطلب', light:'الوضع الفاتح', dark:'الوضع الداكن', lang:'Deutsch', langs:'DE',
   login:'تسجيل الدخول', register:'حساب جديد', password:'كلمة السر', newpass:'كلمة سر جديدة', oldpass:'كلمة السر الحالية', logout:'تسجيل الخروج', save:'حفظ', saved:'انحفظ',
   welcome:'أهلاً', profile:'معلوماتي', address:'عنوان التوصيل', noorders:'لسا ما طلبت شي.', reorder:'اطلب نفس الطلب', added:'انضاف للسلة', loginhint:'سجّل دخول لتحفظ عنوانك وتشوف طلباتك.',
-  orguest:'أو كمّل بدون حساب', haveacc:'عندك حساب؟', noacc:'ما عندك حساب؟', changepass:'تغيير كلمة السر', forgot:'نسيت كلمة السر؟ تواصل معنا ومنعطيك كلمة سر جديدة.',
+  orguest:'أو كمّل بدون حساب', haveacc:'عندك حساب؟', noacc:'ما عندك حساب؟', changepass:'تغيير كلمة السر', forgot:'نسيت كلمة السر؟', forgot_t:'كلمة سر جديدة', forgot_p:'اكتب الإيميل تبع حسابك. منبعتلك رابط تحط فيه كلمة سر جديدة.', forgot_send:'ابعت الرابط', forgot_ok:'إذا في حساب بهالإيميل، وصلك رابط. شوف الإيميل (وكمان مجلد Spam). الرابط شغال ساعة وحدة.', reset_t:'حط كلمة سر جديدة', newpass2:'أعد كلمة السر', e_nomatch:'كلمتين السر مش متل بعض.', e_resetbad:'الرابط مش صالح أو انتهى. اطلب رابط جديد.', reset_ok:'تغيّرت كلمة السر.',
   recent:'بحثت مؤخراً', suggest:'جرّب', deliveryfrom:'التوصيل من', pickuphere:'استلام من Steintorweg 4', orderas:'الطلب باسم', change:'تغيير', clear:'مسح',
   hmin:'دقيقة', addcart:'أضف', options:'الخيارات', orders:'طلبات', cancelnote:'لإلغاء الطلب اتصل بالمحل.', whatsapp:'واتساب', viewcart:'عرض السلة'
  },
@@ -92,7 +92,7 @@ const T = {
   noresults:'Dazu haben wir nichts gefunden.', vatincl:'Alle Preise inkl. MwSt.', orderno:'Bestellnummer', light:'Heller Modus', dark:'Dunkler Modus', lang:'العربية', langs:'ع',
   login:'Anmelden', register:'Konto erstellen', password:'Passwort', newpass:'Neues Passwort', oldpass:'Aktuelles Passwort', logout:'Abmelden', save:'Speichern', saved:'Gespeichert',
   welcome:'Hallo', profile:'Meine Daten', address:'Lieferadresse', noorders:'Du hast noch nichts bestellt.', reorder:'Erneut bestellen', added:'Im Warenkorb', loginhint:'Melde dich an, um deine Adresse zu speichern und Bestellungen zu sehen.',
-  orguest:'oder ohne Konto weiter', haveacc:'Schon ein Konto?', noacc:'Noch kein Konto?', changepass:'Passwort ändern', forgot:'Passwort vergessen? Melde dich bei uns, wir vergeben ein neues.',
+  orguest:'oder ohne Konto weiter', haveacc:'Schon ein Konto?', noacc:'Noch kein Konto?', changepass:'Passwort ändern', forgot:'Passwort vergessen?', forgot_t:'Neues Passwort', forgot_p:'Gib die E-Mail deines Kontos ein. Wir schicken dir einen Link, mit dem du ein neues Passwort festlegst.', forgot_send:'Link senden', forgot_ok:'Wenn es ein Konto mit dieser E-Mail gibt, ist ein Link unterwegs. Schau ins Postfach (auch in den Spam-Ordner). Der Link gilt eine Stunde.', reset_t:'Neues Passwort festlegen', newpass2:'Passwort wiederholen', e_nomatch:'Die Passwörter stimmen nicht überein.', e_resetbad:'Der Link ist ungültig oder abgelaufen. Fordere einen neuen an.', reset_ok:'Passwort geändert.',
   recent:'Zuletzt gesucht', suggest:'Vorschläge', deliveryfrom:'Lieferung ab', pickuphere:'Abholung am Steintorweg 4', orderas:'Bestellung als', change:'Ändern', clear:'Löschen',
   hmin:'Min.', addcart:'Hinzufügen', options:'Optionen', orders:'Bestellungen', cancelnote:'Zum Stornieren bitte das Geschäft anrufen.', whatsapp:'WhatsApp', viewcart:'Warenkorb ansehen'
  }
@@ -148,7 +148,7 @@ function errMsg(e) {
   const k = m.split(':')[0].trim();
   const rest = m.includes(':') ? m.slice(m.indexOf(':') + 1).trim() : '';
   const map = { zone:'e_zone', min:'e_min', coupon:'e_coupon', coupon_min:'e_coupon_min', stock:'e_stock', closed:'e_closed', contact:'e_contact', address:'e_address', product:'e_product',
-    phone:'e_phone', payment:'e_payment', time:'e_time', option:'e_option', cakedate:'e_cakedate', rate_limited:'e_rate', email:'e_email', exists:'e_exists', login:'e_login', session:'e_session', password:'e_password' };
+    phone:'e_phone', payment:'e_payment', time:'e_time', option:'e_option', cakedate:'e_cakedate', rate_limited:'e_rate', email:'e_email', exists:'e_exists', login:'e_login', session:'e_session', password:'e_password', resetbad:'e_resetbad' };
   if (map[k]) return t(map[k]) + (rest ? ' ' + (k === 'min' || k === 'coupon_min' ? money(rest) : rest) : '');
   if (/fetch|network/i.test(m)) return S.lang === 'ar' ? 'ما في اتصال بالإنترنت.' : 'Keine Internetverbindung.';
   return t('err');
@@ -258,9 +258,9 @@ function setLang(l) {
 }
 function header() {
   const n = cartTotals().n;
-  return `<header class="top noprint"><div class="in">
+  return `<header class="top glass noprint" id="top"><div class="in">
    <button class="ib" id="menuBtn" aria-label="Menü">${ic('menu')}</button>
-   <a href="#/" aria-label="Start"><img class="logo" src="logo.png" alt="بيت كرم – Stein & Olive"></a>
+   <a href="#/" aria-label="Start"><img class="logo l-on-dark" src="logo.png" alt="بيت كرم – Stein & Olive"><img class="logo l-on-lite" src="logo-dark.png" alt="" aria-hidden="true"></a>
    <div class="hsearch"><div class="sbox">${ic('search')}<input type="search" id="hq" placeholder="${esc(t('searchph'))}" autocomplete="off" readonly></div></div>
    <div class="sp"></div>
    <button class="ib msearch" id="msBtn" aria-label="${esc(t('search'))}">${ic('search')}</button>
@@ -268,6 +268,12 @@ function header() {
    <a class="ib" href="#/cart" aria-label="${esc(t('cart'))}">${ic('bag')}<span class="cnt" id="hcnt" ${n ? '' : 'hidden'}>${n}</span></a>
   </div></header>`;
 }
+function topTone() {
+  const tp = $('#top'); if (!tp) return;
+  const band = $('#main > .hero:first-child, #main > .shead:first-child');
+  tp.classList.toggle('lite', !(band && band.getBoundingClientRect().bottom > 78));
+}
+window.addEventListener('scroll', () => { if (!topTone.f) { topTone.f = 1; requestAnimationFrame(() => { topTone.f = 0; topTone(); }); } }, { passive: true });
 function tabbar(active) {
   const n = cartTotals().n;
   const it = (h, i, k, a) => `<a href="${h}" class="${active === a ? 'on' : ''}">${ic(i)}<span>${esc(t(k))}</span>${a === 'cart' ? `<span class="cnt" id="tcnt" ${n ? '' : 'hidden'}>${n}</span>` : ''}</a>`;
@@ -291,7 +297,8 @@ function cartBar() {
 function page(inner, opt) {
   opt = opt || {};
   document.body.classList.remove('staff', 'tvmode');
-  $('#app').innerHTML = header() + `<main class="wrap" id="main">${inner}</main>` + footer() + (opt.noBar ? '' : cartBar()) + tabbar(opt.tab);
+  $('#app').innerHTML = header() + `<main class="wrap gl" id="main">${inner}</main>` + footer() + (opt.noBar ? '' : cartBar()) + tabbar(opt.tab);
+  topTone();
   $('#langBtn').onclick = () => { setLang(S.lang === 'ar' ? 'de' : 'ar'); route(); };
   $('#menuBtn').onclick = drawer;
   $('#msBtn').onclick = () => searchSheet();
@@ -710,6 +717,48 @@ async function vInvoice(token) {
   $('#pr').onclick = () => window.print();
 }
 
+/* ---------- password reset ---------- */
+function forgotSheet(pre) {
+  modal(`<button class="ib x" data-close aria-label="${esc(t('back'))}">${ic('x')}</button><h3>${esc(t('forgot_t'))}</h3>
+    <div id="fgBody"><p class="note">${esc(t('forgot_p'))}</p>
+    <form id="fgF" novalidate><label class="f"><span>${esc(t('email'))}</span><input type="email" id="fgE" autocomplete="email" maxlength="120" value="${esc(pre || '')}"></label>
+    <button class="btn full" type="submit">${esc(t('forgot_send'))}</button></form></div>`, el => {
+    const f = $('#fgF', el); setTimeout(() => $('#fgE', el).focus(), 50);
+    f.onsubmit = async e => {
+      e.preventDefault();
+      const email = clean($('#fgE', el).value, 120).toLowerCase();
+      if (!/^[^\s@<>"']+@[^\s@<>"']+\.[a-z]{2,}$/i.test(email)) return toast(t('e_email'), 1);
+      if (!allow('reset', 3, 300)) return;
+      const b = $('button[type=submit]', f); b.disabled = true;
+      const { error } = await sb.rpc('customer_reset_request', { p_email: email, p_lang: S.lang });
+      b.disabled = false;
+      if (error) return toast(errMsg(error), 1);
+      $('#fgBody', el).innerHTML = `<div class="infobox">${ic('check', 's')}<span>${esc(t('forgot_ok'))}</span></div><button class="btn o full" data-close>OK</button>`;
+      $$('[data-close]', el).forEach(x => x.onclick = closeModal);
+    };
+  });
+}
+function vReset(token) {
+  if (!/^[0-9a-f]{64}$/.test(token || '')) { location.hash = '#/account'; return; }
+  page(`<div style="max-width:440px;margin:10px auto"><div class="card"><h2 style="font-size:20px;margin-bottom:10px">${esc(t('reset_t'))}</h2>
+    <form id="rsF" novalidate><label class="f"><span>${esc(t('newpass'))}</span><input type="password" id="r1" autocomplete="new-password" minlength="8" maxlength="200" required></label>
+    <label class="f"><span>${esc(t('newpass2'))}</span><input type="password" id="r2" autocomplete="new-password" minlength="8" maxlength="200" required></label>
+    <button class="btn full" type="submit">${esc(t('save'))}</button></form></div></div>`, { tab: 'account', noBar: 1 });
+  $('#rsF').onsubmit = async e => {
+    e.preventDefault();
+    const a = $('#r1').value, b = $('#r2').value;
+    if (a.length < 8) return toast(t('e_password'), 1);
+    if (a !== b) return toast(t('e_nomatch'), 1);
+    if (!allow('resetok', 5, 60)) return;
+    const btn = $('#rsF button'); btn.disabled = true;
+    const { data, error } = await sb.rpc('customer_reset_confirm', { p_token: token, p_new: a });
+    btn.disabled = false;
+    if (error) return toast(errMsg(error), 1);
+    try { history.replaceState(null, '', location.pathname + '#/account'); } catch (_) {}
+    setCustToken(data); await loadCustomer(); toast(t('reset_ok')); route();
+  };
+}
+
 /* ---------- account ---------- */
 async function vAccount(sub) {
   const next = (location.hash.split('?')[1] || '').replace('next=', '');
@@ -723,11 +772,12 @@ async function vAccount(sub) {
         <label class="f"><span>${esc(t('email'))}</span><input type="email" id="aE" autocomplete="email" maxlength="120" required></label>
         <label class="f"><span>${esc(t('password'))}</span><input type="password" id="aW" autocomplete="${mode === 'register' ? 'new-password' : 'current-password'}" minlength="8" maxlength="200" required></label>
         <button class="btn full" type="submit" style="margin-top:6px">${esc(mode === 'register' ? t('register') : t('login'))}</button></form>
-        ${mode === 'login' ? `<p class="note" style="margin-bottom:0">${esc(t('forgot'))}</p>` : ''}</div>
+        ${mode === 'login' ? `<button type="button" class="lnk" id="fgBtn">${esc(t('forgot'))}</button>` : ''}</div>
       ${next === 'checkout' ? `<a class="btn o full" href="#/checkout">${esc(t('orguest'))}</a>` : ''}
       ${ls.get('so_orders', []).length ? `<div class="card"><h3>${esc(t('myorders'))}</h3>${ls.get('so_orders', []).slice(0, 10).map(o => `<a class="li" style="color:inherit;text-decoration:none" href="#/track/${esc(o.token)}"><div class="t"><b>#${+o.id}</b><small>${fmtDate(o.at)}</small></div>${ic(S.lang === 'ar' ? 'back' : 'fwd', 's')}</a>`).join('')}</div>` : ''}
     </div>`, { tab: 'account' });
     $$('[data-m]').forEach(b => b.onclick = () => { location.hash = '#/account' + (b.dataset.m === 'register' ? '/register' : '') + (next ? '?next=' + next : ''); });
+    if ($('#fgBtn')) $('#fgBtn').onclick = () => forgotSheet(($('#aE').value || '').trim());
     $('#af').onsubmit = async e => {
       e.preventDefault();
       const email = clean($('#aE').value, 120).toLowerCase(), pw = $('#aW').value;
@@ -842,6 +892,7 @@ async function route() {
   if (r === 'invoice') return vInvoice(a);
   if (r === 'orders') { location.hash = '#/account'; return; }
   if (r === 'account') return vAccount(a);
+  if (r === 'reset') return vReset(a);
   if (r === 'impressum' || r === 'datenschutz' || r === 'agb') return vLegal(r);
   if (r === 'screen') return vScreen(decodeURIComponent(a || ''));
   return vHome();

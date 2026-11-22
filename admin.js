@@ -785,19 +785,54 @@ function secSettings(main) {
     <div class="card"><h3>${esc(A('الإيميلات للزباين', 'E-Mails an Kunden'))}</h3>
      <p class="note">${esc(A('بتنبعت لحالها: وصل الطلب، قيد التحضير، جاهز، بالطريق، تم التوصيل/الاستلام، ملغي، وصل التحويل.', 'Werden automatisch gesendet: eingegangen, in Zubereitung, fertig, unterwegs, geliefert/abgeholt, storniert, Zahlung erhalten.'))}</p>
      ${f('mail_from', A('المرسل (مثلاً Stein & Olive <bestellung@deine-domain.de>)', 'Absender (z. B. Stein & Olive <bestellung@deine-domain.de>)'))}${f('site_url', A('رابط الموقع', 'Website-Adresse'))}
-     <div id="mailLog" class="note">…</div></div>
+     <div class="sub" style="margin:14px 0 6px"><b>${esc(A('مفتاح Resend', 'Resend-Schlüssel'))}</b></div>
+     <div id="rsState" class="note">…</div>
+     <div class="row"><label class="f"><span>${esc(A('المفتاح الجديد (بيبلّش بـ re_)', 'Neuer Schlüssel (beginnt mit re_)'))}</span><input type="password" id="rsKey" autocomplete="off" spellcheck="false" maxlength="210" placeholder="re_…"></label></div>
+     <div class="acts" style="margin-bottom:10px"><button class="btn s" id="rsSave">${esc(A('حفظ المفتاح', 'Schlüssel speichern'))}</button><button class="btn s r" id="rsDel" hidden>${esc(A('حذف المفتاح', 'Schlüssel löschen'))}</button></div>
+     <p class="note">${esc(A('المفتاح بينحفظ بمكان مقفول بالسيرفر. ما حدا بيقدر يشوفو، ولا حتى من هون. بيطلع بس آخر 4 أحرف.', 'Der Schlüssel wird gesperrt auf dem Server gespeichert. Niemand kann ihn wieder auslesen, auch nicht hier. Angezeigt werden nur die letzten 4 Zeichen.'))}</p>
+     <div class="row"><label class="f"><span>${esc(A('إيميل تجربة', 'Test-E-Mail an'))}</span><input type="email" id="rsTo" maxlength="120" value="${esc(s.email || '')}"></label></div>
+     <button class="btn s o" id="rsTest">${esc(A('ابعت إيميل تجربة', 'Test-E-Mail senden'))}</button>
+     <div id="mailLog" class="note" style="margin-top:12px">…</div></div>
     <div class="card"><h3>${esc(A('إعلان بالصفحة الرئيسية', 'Hinweis auf Startseite'))}</h3>${f('announce_ar', 'بالعربي')}${f('announce_de', 'Deutsch')}
      <label class="f"><span>${esc(A('تنبيه الصلاحية قبل (أيام)', 'MHD-Warnung (Tage vorher)'))}</span><input type="number" id="sEx" value="${esc(s.expiry_warn_days || 3)}"></label></div>
     <button class="btn full" id="setSave">${esc(A('حفظ الإعدادات', 'Einstellungen speichern'))}</button>`;
   const dz = () => { $('#zones').innerHTML = s.zones.map((z, i) => `<div class="card" style="padding:8px"><input type="text" data-zp="${i}" value="${esc(z.plz)}" placeholder="20099, 20097"><div class="row" style="margin-top:6px"><label class="f" style="margin:0"><span>${esc(A('سعر التوصيل €', 'Gebühr €'))}</span><input type="number" step="0.1" data-zf="${i}" value="${esc(z.fee)}"></label><label class="f" style="margin:0"><span>${esc(A('الحد الأدنى €', 'Mindestwert €'))}</span><input type="number" step="0.5" data-zm="${i}" value="${esc(z.min)}"></label></div><button class="btn s r" data-zx="${i}" style="margin-top:6px">✕</button></div>`).join('');
     $$('[data-zx]').forEach(b => b.onclick = () => { readZ(); s.zones.splice(+b.dataset.zx, 1); dz(); }); };
   const readZ = () => { s.zones = s.zones.map((z, i) => ({ plz: $(`[data-zp="${i}"]`).value.replace(/\s/g, ''), fee: parseFloat($(`[data-zf="${i}"]`).value) || 0, min: parseFloat($(`[data-zm="${i}"]`).value) || 0 })); };
-  sb.from('mail_queue').select('event,created_at,sent_at,error,order_id').order('created_at', { ascending: false }).limit(8).then(({ data }) => {
+  const EVN = { test: A('تجربة', 'Test'), reset: A('كلمة سر جديدة', 'Passwort'), created: A('طلب جديد', 'Eingang'), preparing: A('تحضير', 'Zubereitung'), ready: A('جاهز', 'Fertig'), on_way: A('بالطريق', 'Unterwegs'), delivered: A('توصيل', 'Geliefert'), picked_up: A('استلام', 'Abgeholt'), cancelled: A('إلغاء', 'Storniert'), paid: A('دفع', 'Bezahlt') };
+  const mailLog = () => sb.from('mail_queue').select('event,created_at,sent_at,error,order_id').order('created_at', { ascending: false }).limit(8).then(({ data }) => {
     const el = $('#mailLog'); if (!el) return;
-    el.innerHTML = (data || []).length ? (data.some(m => (m.error || '').includes('RESEND')) ? `<div class="warnbox">${esc(A('الإيميلات لسا مش شغالة: لازم ينحط مفتاح خدمة الإيميل (RESEND_API_KEY).', 'E-Mails noch nicht aktiv: der Schlüssel des E-Mail-Dienstes (RESEND_API_KEY) fehlt.'))}</div>` : '') +
-      data.map(m => `<div class="sum"><span>#${m.order_id} · ${esc(m.event)} · ${fmtDate(m.created_at)}</span><span>${m.sent_at ? '<span class="pill ok">' + esc(A('انبعت', 'Gesendet')) + '</span>' : '<span class="pill bad">' + esc((m.error || A('بالانتظار', 'Wartet')).slice(0, 40)) + '</span>'}</span></div>`).join('')
+    el.innerHTML = (data || []).length ? data.map(m => `<div class="sum"><span>${m.order_id ? '#' + (+m.order_id) + ' · ' : ''}${esc(EVN[m.event] || m.event)} · ${fmtDate(m.created_at)}</span><span>${m.sent_at ? '<span class="pill ok">' + esc(A('انبعت', 'Gesendet')) + '</span>' : '<span class="pill bad">' + esc((m.error || A('بالانتظار', 'Wartet')).slice(0, 40)) + '</span>'}</span></div>`).join('')
       : esc(A('لسا ما انبعت شي.', 'Noch keine E-Mails.'));
   });
+  const rsState = async () => {
+    const { data } = await sb.rpc('admin_mail_status'); const el = $('#rsState'); if (!el) return;
+    el.innerHTML = data && data.set ? `<span class="pill ok">${esc(A('المفتاح محفوظ', 'Schlüssel gespeichert'))}</span> <span dir="ltr">${esc(data.hint)}</span>`
+      : `<div class="warnbox">${esc(A('ما في مفتاح لسا. بدونو ما بتنبعت إيميلات.', 'Noch kein Schlüssel. Ohne ihn werden keine E-Mails gesendet.'))}</div>`;
+    $('#rsDel').hidden = !(data && data.set);
+  };
+  mailLog(); rsState();
+  $('#rsSave').onclick = async () => {
+    const k = $('#rsKey').value.trim();
+    if (!/^re_[A-Za-z0-9_]{10,200}$/.test(k)) return toast(A('المفتاح لازم يبلّش بـ re_. انسخو كامل من Resend.', 'Der Schlüssel muss mit re_ beginnen. Bitte komplett aus Resend kopieren.'), 1);
+    const { error } = await sb.rpc('admin_set_resend_key', { p_key: k });
+    if (error) return err(error);
+    $('#rsKey').value = ''; toast(A('انحفظ المفتاح', 'Schlüssel gespeichert')); rsState();
+  };
+  $('#rsDel').onclick = async () => {
+    const { error } = await sb.rpc('admin_set_resend_key', { p_key: '' });
+    if (error) return err(error);
+    toast(A('انحذف المفتاح', 'Schlüssel gelöscht')); rsState();
+  };
+  $('#rsTest').onclick = async () => {
+    const to = $('#rsTo').value.trim();
+    const b = $('#rsTest'); b.disabled = true;
+    const { error } = await sb.rpc('admin_test_mail', { p_to: to });
+    b.disabled = false;
+    if (error) return err(error);
+    toast(A('انبعت الطلب. شوف الإيميل بعد دقيقة.', 'Gesendet. Schau in einer Minute ins Postfach.'));
+    setTimeout(mailLog, 4000);
+  };
   dz(); $('#zAdd').onclick = () => { readZ(); s.zones.push({ plz: '', fee: 3, min: 20 }); dz(); };
   $('#setSave').onclick = async () => {
     readZ(); $$('[data-k]').forEach(i => s[i.dataset.k] = i.value.trim());
