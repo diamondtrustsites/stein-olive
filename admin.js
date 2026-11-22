@@ -90,13 +90,14 @@ async function vLogin() {
     if (error) { $('#lp').classList.add('bad'); $('#lp').select(); return toast(A('كلمة السر غلط.', 'Passwort falsch.'), 1); }
     S.staff = null; const st = await session();
     if (!st) { await sb.auth.signOut(); return toast(A('الحساب غير مفعّل', 'Konto nicht freigeschaltet'), 1); }
-    if (appKind() === 'fahrer' && st.role !== 'driver') { await sb.auth.signOut(); S.staff = null; return toast(A('هاد تطبيق السواقين بس. الإدارة والمحلات من تطبيق الفريق.', 'Nur für Fahrer. Verwaltung und Geschäfte nutzen die Team-App.'), 1); }
+    if (appKind() === 'team' && st.role === 'driver') { await sb.auth.signOut({ scope: 'local' }); S.staff = null; return toast(A('السواق إلو تطبيق لحالو: stein-olive.de/fahrer', 'Fahrer nutzen die Fahrer-App: stein-olive.de/fahrer'), 1); }
+    if (appKind() === 'fahrer' && st.role !== 'driver') { await sb.auth.signOut({ scope: 'local' }); S.staff = null; return toast(A('هاد تطبيق السواقين بس. الإدارة والمحلات من تطبيق الفريق.', 'Nur für Fahrer. Verwaltung und Geschäfte nutzen die Team-App.'), 1); }
     try { localStorage.setItem('so_last_staff', u.replace(DOMAIN, '')); } catch (_) {}
     location.hash = st.role === 'driver' ? '#/driver' : '#/admin/orders';
   };
   $('#lb').onclick = go; $('#lp').onkeydown = e => { if (e.key === 'Enter') go(); };
 }
-async function logout() { stopLive(); stopGeo(); await sb.auth.signOut(); S.staff = null; location.hash = '#/team'; }
+async function logout() { stopLive(); stopGeo(); await sb.auth.signOut({ scope: 'local' }); S.staff = null; location.hash = '#/team'; }
 
 /* ---------- layout ---------- */
 const MENU = [
@@ -966,7 +967,7 @@ async function secCustomers(main) {
 }
 
 /* ---------- settings ---------- */
-const APPVER = '2026.11.22-13';
+const APPVER = '2026.11.22-14';
 const SETSEC = [
   ['general', 'store', 'معلومات المحل', 'Geschäftsdaten', 'الاسم، العنوان، Impressum', 'Name, Adresse, Impressum'],
   ['orders', 'inbox', 'استقبال الطلبات', 'Bestellannahme', 'إيقاف مؤقت، طلب مسبق، حد أدنى', 'Pause, Vorbestellung, Mindestwert'],
@@ -1281,10 +1282,14 @@ async function vDriver() {
 const SECS = { customers: secCustomers, orders: secOrders, products: secProducts, stock: secStock, scan: secScan, reports: secReports, shops: secShops, staff: secStaff, coupons: secCoupons, suppliers: secSuppliers, reviews: secReviews, settings: secSettings, screens: secScreens, account: secAccount };
 async function route(r, sec) {
   stopCamera();
-  const st = await session();
+  const st0 = await session();
+  // Jede App hat ihre eigenen Konten: Fahrer-App nur Fahrer, Team-App nur Verwaltung und Geschäfte.
+  // (Alte Anmeldungen von früher, als alle Apps eine Anmeldung teilten, werden hier abgemeldet.)
+  const wrongApp = st0 && ((appKind() === 'fahrer' && st0.role !== 'driver') || (appKind() === 'team' && st0.role === 'driver'));
+  if (wrongApp) { await sb.auth.signOut({ scope: 'local' }); S.staff = null; }
+  const st = wrongApp ? null : st0;
   if (r === 'login' || r === 'team') { if (st) { location.hash = st.role === 'driver' ? '#/driver' : '#/admin/orders'; return; } return vLogin(); }
   if (!st) { location.hash = '#/team'; return; }
-  if (appKind() === 'fahrer' && st.role !== 'driver') { await sb.auth.signOut(); S.staff = null; location.hash = '#/team'; return vLogin(); }
   if (r === 'driver' || st.role === 'driver') { if (r !== 'driver' && sec !== 'account') { location.hash = '#/driver'; return; } if (r === 'driver') return vDriver(); }
   stopLive();
   sec = SECS[sec] && MENU.find(m => m[0] === sec && m[4].includes(st.role)) ? sec : 'orders';
