@@ -841,11 +841,14 @@ function invoiceHtml(o) {
   if (o.mode === 'delivery') add(+(s.delivery_vat || 7), +o.delivery_fee || 0);
   const gsum = Object.values(gross).reduce((a, b) => a + b, 0);
   if (+o.discount && gsum) Object.keys(gross).forEach(v => { gross[v] -= (+o.discount) * gross[v] / gsum; });
-  let pos = 0;
-  const rows = Object.keys(byShop).map(sid => `<tr class="grp"><td colspan="6"><span class="bi"><span>${esc((shopById(sid) || {}).name_de || sid)}</span><span class="ar" dir="rtl">${esc((shopById(sid) || {}).name_ar || '')}</span></span></td></tr>` + byShop[sid].map(i => {
+  let pos = 0; let mrows = '';
+  const rows = Object.keys(byShop).map(sid => (mrows += `<div class="g"><span>${esc((shopById(sid) || {}).name_de || sid)}</span><span class="ar" dir="rtl">${esc((shopById(sid) || {}).name_ar || '')}</span></div>`, '') + `<tr class="grp"><td colspan="6"><span class="bi"><span>${esc((shopById(sid) || {}).name_de || sid)}</span><span class="ar" dir="rtl">${esc((shopById(sid) || {}).name_ar || '')}</span></span></td></tr>` + byShop[sid].map(i => {
     pos++; const q = +(i.final_qty || i.qty);
     const unit = i.unit === 'kg' ? de(i.unit_price) + ' /kg' : de(+i.line_total / (q || 1));
     const opts = (i.options || []).map(x => x.de || x.ar).join(', ');
+    const qtx = i.unit === 'kg' ? q.toLocaleString('de-DE', { maximumFractionDigits: 3 }) + ' kg' : q;
+    const extra = `${opts ? `<div class="sm">${esc(opts)}</div>` : ''}${i.cake ? `<div class="sm">Termin ${esc(i.cake.date)}${i.cake.text ? ' · „' + esc(i.cake.text) + '“' : ''}</div>` : ''}`;
+    mrows += `<div class="it"><div class="nm"><b>${esc(i.name_de)}</b><div class="ar" dir="rtl">${esc(i.name_ar)}</div>${extra}</div><div class="ln"><span>${qtx} × ${unit}${ku ? '' : ` · MwSt ${+i.vat} %`}</span><b>${de(i.line_total)}</b></div></div>`;
     return `<tr><td>${pos}</td><td><b>${esc(i.name_de)}</b><div class="ar" dir="rtl">${esc(i.name_ar)}</div>${opts ? `<div class="sm">${esc(opts)}</div>` : ''}${i.cake ? `<div class="sm">Termin ${esc(i.cake.date)}${i.cake.text ? ' · „' + esc(i.cake.text) + '“' : ''}</div>` : ''}</td>
       <td class="n">${i.unit === 'kg' ? q.toLocaleString('de-DE', { maximumFractionDigits: 3 }) + ' kg' : q}</td><td class="n">${unit}</td>${ku ? '' : `<td class="n">${+i.vat} %</td>`}<td class="n">${de(i.line_total)}</td></tr>`;
   }).join('')).join('');
@@ -859,6 +862,7 @@ function invoiceHtml(o) {
        ${s.vat_id ? '<br>USt-IdNr. ' + esc(s.vat_id) : ''}${s.tax_id ? '<br>St.-Nr. ' + esc(s.tax_id) : ''}</div>
      <div><div class="lb"><span class="bi"><span>Kunde</span><span class="ar" dir="rtl">الزبون</span></span></div><b>${esc(o.customer_name)}</b>${o.mode === 'delivery' ? '<br>' + esc(o.street) + '<br>' + esc(o.plz) + ' ' + esc(o.city) : ''}${o.phone ? '<br>Tel. ' + esc(o.phone) : ''}</div></section>
    <table class="inv-i"><thead><tr><th>Pos.</th><th><span class="bi"><span>Artikel</span><span class="ar" dir="rtl">المنتج</span></span></th><th class="n">Menge</th><th class="n">Einzelpreis</th>${ku ? '' : '<th class="n">MwSt</th>'}<th class="n">Betrag</th></tr></thead><tbody>${rows}</tbody></table>
+   <div class="inv-m">${mrows}</div>
    <div class="inv-s"><table>
      <tr><td>Zwischensumme</td><td class="n">${de(o.subtotal)}</td></tr>${+o.pfand ? `<tr><td>Pfand</td><td class="n">${de(o.pfand)}</td></tr>` : ''}
      ${o.mode === 'delivery' ? `<tr><td>Liefergebühr</td><td class="n">${de(o.delivery_fee)}</td></tr>` : ''}${+o.discount ? `<tr><td>Rabatt ${esc(o.coupon || '')}</td><td class="n">−${de(o.discount)}</td></tr>` : ''}

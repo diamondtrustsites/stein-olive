@@ -11,6 +11,34 @@ const stPill = s => `<span class="pill ${STATUS[s][2]}">${esc(A(STATUS[s][0], ST
 const PAY = { cash: ['كاش', 'Bar'], card: ['بطاقة', 'Karte'], paypal: ['PayPal', 'PayPal'], transfer: ['تحويل بنكي', 'Überweisung'], stripe: ['بطاقة أونلاين', 'Karte online'] };
 const err = e => toast(App.errMsg(e), 1);
 
+/* ---------- eigene App auf dem Startbildschirm: Team (/team/) und Fahrer (/fahrer/) ---------- */
+let instEvt = null;
+const appKind = () => document.documentElement.getAttribute('data-app');
+const isStandalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); if (appKind()) instEvt = e; });
+window.addEventListener('appinstalled', () => { instEvt = null; $$('[data-inst]').forEach(b => b.remove()); });
+function instBtn(kind) {
+  if (isStandalone() && appKind() === kind) return '';
+  const lab = kind === 'fahrer' ? A('ضيف تطبيق السائق للشاشة الرئيسية', 'Fahrer-App zum Startbildschirm') : A('ضيف تطبيق الإدارة للشاشة الرئيسية', 'Team-App zum Startbildschirm');
+  return `<button class="btn s o" data-inst="${kind}">${ic('plus', 's')} ${esc(lab)}</button>`;
+}
+function bindInst(root) {
+  $$('[data-inst]', root || document).forEach(b => b.onclick = async () => {
+    const kind = b.dataset.inst;
+    if (appKind() !== kind) { // zuerst auf die eigene Seite der App wechseln, dort kann man sie installieren
+      sessionStorage.setItem('so_inst', kind);
+      location.href = new URL(kind + '/', document.baseURI).href + (kind === 'fahrer' ? '#/driver' : '#/team'); return;
+    }
+    if (instEvt) { const ev = instEvt; instEvt = null; ev.prompt(); try { await ev.userChoice; } catch (_) {} return; }
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    modal(`<button class="ib x" data-close>${ic('x')}</button><h3>${esc(A('ضيف التطبيق للشاشة الرئيسية', 'Zum Startbildschirm hinzufügen'))}</h3>
+      <p>${esc(ios ? A('بـ Safari: اكبس على زر المشاركة تحت، وبعدين «إلى الشاشة الرئيسية».', 'In Safari unten auf „Teilen“ tippen, dann „Zum Home-Bildschirm“.')
+        : A('اكبس على النقاط التلاتة (⋮) فوق بـ Chrome، وبعدين «App installieren» أو «Zum Startbildschirm hinzufügen».', 'Oben in Chrome auf ⋮ tippen, dann „App installieren“ bzw. „Zum Startbildschirm hinzufügen“.'))}</p>
+      <p class="note">${esc(A('إذا مكتوب إنو التطبيق محمّل: احذف أيقونات Stein & Olive القديمة من الشاشة الرئيسية وجرّب مرة تانية.', 'Steht dort „bereits installiert“: alte Stein-&-Olive-Symbole vom Startbildschirm löschen und nochmal versuchen.'))}</p>`);
+  });
+  if (sessionStorage.getItem('so_inst') === appKind()) { sessionStorage.removeItem('so_inst'); const b = $(`[data-inst="${appKind()}"]`, root || document); if (b) { b.classList.remove('o'); toast(A('اكبس الزر مرة تانية لتضيف التطبيق', 'Tippe nochmal auf den Knopf, um die App hinzuzufügen')); } }
+}
+
 /* ---------- auth ---------- */
 async function session() {
   const { data } = await sb.auth.getSession();
@@ -92,15 +120,17 @@ function shell(sec, inner) {
      <b style="font-size:17px;display:inline-flex;gap:8px;align-items:center">${ic(cur[1])} ${esc(A(cur[2], cur[3]))}</b><div class="sp"></div>
      <span class="note" style="display:none" id="liveDot">●</span>
      <button class="ib" id="alang">${esc(App.t('lang'))}</button></div></header>
+    ${instBtn('team') && localStorage.getItem('so_inst_hide') !== '1' ? `<div class="wrap noprint instbar"><div class="card" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 12px;margin:10px 0 0">${instBtn('team')}<div class="sp" style="flex:1"></div><button class="ib" id="instX" aria-label="${esc(A('إخفاء', 'Ausblenden'))}">${ic('x')}</button></div></div>` : ''}
     <main class="wrap enter" id="amain">${inner || ''}</main>`;
+  bindInst($('.instbar')); if ($('#instX')) $('#instX').onclick = () => { localStorage.setItem('so_inst_hide', '1'); const b = $('.instbar'); if (b) b.remove(); };
   $('#alang').onclick = () => { App.setLang(S.lang === 'ar' ? 'de' : 'ar'); App.route(); };
   $('#amenu').onclick = () => {
     const d = document.createElement('div'); d.className = 'drawer';
     d.innerHTML = `<div class="pn"><div class="who"><img src="logo.png" alt=""><div style="font-size:14px">${esc(S.staff.name || S.staff.username)} • ${esc(r === 'admin' ? 'Admin' : r === 'shop' ? L(App.shopById(S.staff.shop_id) || {}, 'name') : A('سائق', 'Fahrer'))}</div></div>
       ${items.map(m => `<a href="#/admin/${m[0]}" class="${m[0] === sec ? 'on' : ''}">${ic(m[1])} ${esc(A(m[2], m[3]))}</a>`).join('')}
-      <hr><a href="#/">${ic('globe')} ${esc(A('الموقع', 'Zur Website'))}</a><button class="m" id="lo">${ic('logout')} ${esc(A('خروج', 'Abmelden'))}</button></div>`;
+      <hr>${r === 'driver' ? '' : `<div style="padding:4px 0 8px">${instBtn('team')}</div>`}<a href="#/">${ic('globe')} ${esc(A('الموقع', 'Zur Website'))}</a><button class="m" id="lo">${ic('logout')} ${esc(A('خروج', 'Abmelden'))}</button></div>`;
     d.onclick = e => { if (e.target === d || e.target.closest('a')) d.remove(); };
-    document.body.appendChild(d); $('#lo', d).onclick = logout;
+    document.body.appendChild(d); $('#lo', d).onclick = logout; bindInst(d);
   };
   return $('#amain');
 }
@@ -910,7 +940,7 @@ async function secCustomers(main) {
 }
 
 /* ---------- settings ---------- */
-const APPVER = '2026.11.22-10';
+const APPVER = '2026.11.22-11';
 const SETSEC = [
   ['general', 'store', 'معلومات المحل', 'Geschäftsdaten', 'الاسم، العنوان، Impressum', 'Name, Adresse, Impressum'],
   ['orders', 'inbox', 'استقبال الطلبات', 'Bestellannahme', 'إيقاف مؤقت، طلب مسبق، حد أدنى', 'Pause, Vorbestellung, Mindestwert'],
@@ -1168,13 +1198,13 @@ function syncGeo() {
 async function vDriver() {
   document.body.classList.add('staff');
   let tab = ST.dtab || 'avail';
-  $('#app').innerHTML = `<header class="top"><div class="in"><img class="logo" src="logo.png" alt=""><b>${esc(S.staff.name || S.staff.username)}</b><div class="sp"></div>
+  $('#app').innerHTML = `<header class="top"><div class="in"><img class="logo l-on-dark" src="logo.png" alt=""><img class="logo l-on-lite" src="logo-dark.png" alt="Stein & Olive"><b>${esc(S.staff.name || S.staff.username)}</b><div class="sp"></div>
      <span class="note" style="display:none" id="liveDot">●</span><button class="ib" id="dsnd">${ic(ST.sound ? 'bell' : 'belloff')}</button><button class="ib" id="dl">${esc(App.t('lang'))}</button><button class="ib" id="dlo" aria-label="Abmelden">${ic('logout')}</button></div></header>
     <main class="wrap"><div class="tabs" id="dtabs">${[['avail', 'متاحة', 'Verfügbar'], ['mine', 'طلباتي', 'Meine'], ['done', 'خلصت اليوم', 'Heute erledigt']].map(x => `<button data-t="${x[0]}" class="${tab === x[0] ? 'on' : ''}">${esc(A(x[1], x[2]))} <span id="dc_${x[0]}"></span></button>`).join('')}</div>
-    <div class="acts" style="margin-bottom:8px"><button class="btn s o" id="pushD">${ic('belloff', 's')}</button></div>
+    <div class="acts" style="margin-bottom:8px"><button class="btn s o" id="pushD">${ic('belloff', 's')}</button>${instBtn('fahrer')}</div>
     <div id="geoInfo"></div><div id="dlist"><div class="empty">…</div></div></main>`;
   $('#dl').onclick = () => { App.setLang(S.lang === 'ar' ? 'de' : 'ar'); vDriver(); };
-  paintPush($('#pushD')); $('#pushD').onclick = () => pushToggle($('#pushD'));
+  paintPush($('#pushD')); $('#pushD').onclick = () => pushToggle($('#pushD')); bindInst();
   $('#dlo').onclick = logout;
   $('#dsnd').onclick = () => { ST.sound = !ST.sound; localStorage.setItem('so_sound', ST.sound ? '1' : '0'); if (ST.sound) beep(); $('#dsnd').innerHTML = ic(ST.sound ? 'bell' : 'belloff'); };
   $$('#dtabs button').forEach(b => b.onclick = () => { tab = ST.dtab = b.dataset.t; $$('#dtabs button').forEach(x => x.classList.toggle('on', x === b)); draw(); });
