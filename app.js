@@ -66,7 +66,7 @@ const T = {
   closedday:'مغلق', sent:'وصل طلبك', err:'ما زبطت العملية. جرّب مرة تانية.', schedreq:'في محل مسكّر هلق. اختار وقت لاحق ومنحضّر طلبك عليه.', paypalnote:'بعد ما ترسل الطلب بتنفتح صفحة PayPal للدفع.', contact:'تواصل معنا',
   e_zone:'ما منوصل لهالرمز البريدي.', e_min:'الحد الأدنى للطلب', e_coupon:'كود الخصم غير صالح.', e_coupon_min:'كود الخصم بيشتغل من', e_stock:'الكمية غير متوفرة:', e_closed:'المحل مسكّر:', e_contact:'اكتب اسمك ورقم هاتفك.', e_address:'اكتب العنوان كامل: الشارع ورقم البيت (مثلاً Steintorweg 4)، والرمز البريدي (5 أرقام) والمدينة.', e_product:'في منتج ما عاد متوفر. حدّث الصفحة.',
   e_phone:'رقم الهاتف غير صحيح.', e_payment:'طريقة الدفع غير متاحة.', e_time:'اختار وقت بعد ربع ساعة على الأقل.', e_option:'اختار:', e_cakedate:'اختار تاريخ من بكرا وطالع.', e_rate:'محاولات كتيرة. استنى شوي وجرّب مرة تانية.',
-  e_email:'الإيميل غير صحيح.', e_exists:'في حساب بهالإيميل. سجّل دخول.', e_login:'الإيميل أو كلمة السر غلط.', e_session:'انتهت الجلسة. سجّل دخول مرة تانية.', e_password:'كلمة السر لازم تكون 8 أحرف على الأقل.', e_agree:'وافق على الشروط لتكمل.',
+  e_email:'الإيميل غير صحيح.', e_emailreq:'اكتب إيميلك، عليه بتوصلك تحديثات الطلب وكود التسليم.', e_exists:'في حساب بهالإيميل. سجّل دخول.', e_login:'الإيميل أو كلمة السر غلط.', e_session:'انتهت الجلسة. سجّل دخول مرة تانية.', e_password:'كلمة السر لازم تكون 8 أحرف على الأقل.', e_agree:'وافق على الشروط لتكمل.',
   items:'منتجات', estim:'تقريباً', comment:'تعليق (اختياري)', send:'إرسال', back:'رجوع', hero:'خمسة محلات تحت سقف واحد. اطلب من كلهم بطلب واحد وبتوصلك بمشوار واحد.',
   noresults:'ما لقينا شي بهالاسم.', vatincl:'كل الأسعار شاملة الضريبة.', orderno:'رقم الطلب', light:'الوضع الفاتح', dark:'الوضع الداكن', lang:'Deutsch', langs:'DE',
   login:'تسجيل الدخول', register:'حساب جديد', password:'كلمة السر', newpass:'كلمة سر جديدة', oldpass:'كلمة السر الحالية', logout:'تسجيل الخروج', save:'حفظ', saved:'انحفظ',
@@ -90,7 +90,7 @@ const T = {
   closedday:'Geschlossen', sent:'Bestellung eingegangen', err:'Das hat nicht geklappt. Bitte erneut versuchen.', schedreq:'Ein Geschäft hat gerade geschlossen. Wähle eine spätere Uhrzeit, dann bereiten wir alles dafür vor.', paypalnote:'Nach dem Absenden öffnet sich PayPal zur Zahlung.', contact:'Kontakt',
   e_zone:'Für diese PLZ liefern wir nicht.', e_min:'Mindestbestellwert', e_coupon:'Gutscheincode ungültig.', e_coupon_min:'Gutschein gilt ab', e_stock:'Nicht genug vorrätig:', e_closed:'Geschäft geschlossen:', e_contact:'Bitte Name und Telefon angeben.', e_address:'Bitte vollständige Adresse angeben: Straße mit Hausnummer (z. B. Steintorweg 4), PLZ (5 Ziffern) und Ort.', e_product:'Ein Produkt ist nicht mehr verfügbar. Bitte Seite neu laden.',
   e_phone:'Telefonnummer ungültig.', e_payment:'Zahlungsart nicht verfügbar.', e_time:'Bitte eine Uhrzeit mindestens 15 Minuten später wählen.', e_option:'Bitte wählen:', e_cakedate:'Bitte ein Datum ab morgen wählen.', e_rate:'Zu viele Versuche. Bitte kurz warten.',
-  e_email:'E-Mail ungültig.', e_exists:'Für diese E-Mail gibt es schon ein Konto. Bitte anmelden.', e_login:'E-Mail oder Passwort falsch.', e_session:'Sitzung abgelaufen. Bitte erneut anmelden.', e_password:'Das Passwort braucht mindestens 8 Zeichen.', e_agree:'Bitte AGB und Datenschutz akzeptieren.',
+  e_email:'E-Mail ungültig.', e_emailreq:'Bitte E-Mail eingeben. Dorthin schicken wir die Updates und den Übergabe-Code.', e_exists:'Für diese E-Mail gibt es schon ein Konto. Bitte anmelden.', e_login:'E-Mail oder Passwort falsch.', e_session:'Sitzung abgelaufen. Bitte erneut anmelden.', e_password:'Das Passwort braucht mindestens 8 Zeichen.', e_agree:'Bitte AGB und Datenschutz akzeptieren.',
   items:'Artikel', estim:'ca.', comment:'Kommentar (optional)', send:'Senden', back:'Zurück', hero:'Fünf Geschäfte unter einem Dach. Eine Bestellung, eine Lieferung.',
   noresults:'Dazu haben wir nichts gefunden.', vatincl:'Alle Preise inkl. MwSt.', orderno:'Bestellnummer', light:'Heller Modus', dark:'Dunkler Modus', lang:'العربية', langs:'ع',
   login:'Anmelden', register:'Konto erstellen', password:'Passwort', newpass:'Neues Passwort', oldpass:'Aktuelles Passwort', logout:'Abmelden', save:'Speichern', saved:'Gespeichert',
@@ -572,7 +572,7 @@ async function vCheckout() {
    <div class="card"><h3>${esc(t('profile'))}</h3>
     <div class="row"><label class="f"><span>${esc(t('name'))}</span><input type="text" id="cN" autocomplete="name" maxlength="80" value="${esc(saved.name || '')}"></label>
     <label class="f"><span>${esc(t('phone'))}</span><input type="tel" id="cP" autocomplete="tel" maxlength="40" value="${esc(saved.phone || '')}"></label></div>
-    <label class="f"><span>${esc(t('emailopt'))}</span><input type="email" id="cE" autocomplete="email" maxlength="120" value="${esc(saved.email || '')}"></label></div>
+    <label class="f"><span>${esc(t('email'))}</span><input type="email" id="cE" autocomplete="email" inputmode="email" maxlength="120" required value="${esc(saved.email || '')}"></label></div>
    <div class="card" id="addr"><h3>${esc(t('address'))}</h3><label class="f"><span>${esc(t('street'))}</span><input type="text" id="cS" autocomplete="address-line1" maxlength="160" placeholder="Steintorweg 4" value="${esc(saved.street || '')}"></label>
      <div class="row"><label class="f"><span>${esc(t('plz'))}</span><input type="text" inputmode="numeric" id="cZ" maxlength="5" autocomplete="postal-code" value="${esc(saved.plz || '')}"></label>
      <label class="f"><span>${esc(t('city'))}</span><input type="text" id="cC" autocomplete="address-level2" maxlength="80" value="${esc(saved.city || 'Hamburg')}"></label></div>
@@ -615,6 +615,8 @@ async function vCheckout() {
     const v = (id, m) => clean($(id).value, m);
     if (!v('#cN', 80) || !v('#cP', 40)) return toast(t('e_contact'), 1);
     if (!/^[0-9+ ()/-]{6,40}$/.test(v('#cP', 40))) return toast(t('e_phone'), 1);
+    $('#cE').classList.remove('bad');
+    if (!/^[^\s@<>"']+@[^\s@<>"']+\.[a-z]{2,}$/i.test(v('#cE', 120))) { $('#cE').classList.add('bad'); $('#cE').focus(); return toast(t(v('#cE', 120) ? 'e_email' : 'e_emailreq'), 1); }
     if (st.mode === 'delivery') {
       const bad = [];
       const str = v('#cS', 160);
