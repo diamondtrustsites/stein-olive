@@ -209,7 +209,7 @@ async function loadData() {
 async function fetchAll(table, cols, mod) {
   let out = [], from = 0; const size = 1000;
   for (;;) {
-    let q = sb.from(table).select(cols).order('sort').order('name_de').range(from, from + size - 1);
+    let q = sb.from(table).select(cols).order('sort').order('name_de').order('id').range(from, from + size - 1);
     if (mod) q = mod(q);
     const { data, error } = await q; if (error) throw error;
     out = out.concat(data); if (data.length < size) break; from += size;

@@ -434,6 +434,7 @@ async function secProducts(main) {
     const pick = shopPicker(draw); const sid = ST.shopSel;
     const cats = S.cats.filter(c => c.shop_id === sid);
     main.innerHTML = pick + `<div class="acts" style="margin-bottom:10px">
+       <button class="btn s g" id="pQuick">${ic('scan', 's')} ${esc(A('إضافة سريعة بالسكانر', 'Schnell erfassen (Scanner)'))}</button>
        <button class="btn s" id="pAdd">${esc(A('منتج جديد', 'Neues Produkt'))}</button>
        <button class="btn s o" id="pCats">${esc(A('الأقسام', 'Kategorien'))} (${cats.length})</button>
        <button class="btn s o" id="pImp">${esc(A('استيراد Excel/CSV', 'Import Excel/CSV'))}</button>
@@ -454,6 +455,7 @@ async function secProducts(main) {
     };
     $('#pq').oninput = list; $('#pc').onchange = list; list();
     $('#pAdd').onclick = () => editProduct({ shop_id: sid }, draw);
+    $('#pQuick').onclick = () => quickAdd(main, () => secProducts(main));
     $('#pCats').onclick = () => editCats(sid, draw);
     $('#pImp').onclick = () => importCsv(sid, draw);
     $('#pExp').onclick = () => exportCsv(sid);
@@ -467,6 +469,171 @@ async function secProducts(main) {
   draw();
 }
 const prodBy = id => S.products.find(p => p.id === id);
+/* ---------- Schnell erfassen: Barcode scannen → Name/Foto automatisch (Open Food Facts) → Preis → Enter → nächstes Produkt ---------- */
+const OFF_ALG = { 'en:gluten': 'gluten', 'en:crustaceans': 'crust', 'en:eggs': 'eggs', 'en:fish': 'fish', 'en:peanuts': 'peanut', 'en:soybeans': 'soy', 'en:milk': 'milk', 'en:nuts': 'nuts', 'en:celery': 'celery', 'en:mustard': 'mustard', 'en:sesame-seeds': 'sesame', 'en:sulphur-dioxide-and-sulphites': 'sulph', 'en:lupin': 'lupin', 'en:molluscs': 'mollusc' };
+async function offLookup(code) {
+  if (!/^\d{8,14}$/.test(code)) return null;
+  const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 6000);
+  try {
+    const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,product_name_de,product_name_ar,brands,quantity,image_front_url,allergens_tags,categories_tags`, { signal: ctl.signal });
+    if (!r.ok) return null; const j = await r.json(); return j && j.product && (j.product.product_name || j.product.product_name_de || j.product.product_name_ar) ? j.product : null;
+  } catch (_) { return null; } finally { clearTimeout(to); }
+}
+async function offImage(url) {
+  if (!/^https:\/\/images\.openfoodfacts\.org\//.test(url || '')) return null;
+  try { const r = await fetch(url); if (!r.ok) return null; const b = await r.blob(); return /^image\//.test(b.type) ? b : null; } catch (_) { return null; }
+}
+function quickAdd(main, back) {
+  const D = Object.assign({ cat: '', vat: 7, unit: 'piece', track: false, stock: '', pfand: 0, look: true }, JSON.parse(localStorage.getItem('so_qa') || '{}'));
+  const saveD = () => localStorage.setItem('so_qa', JSON.stringify(D));
+  let cur = null; let added = []; let busy = false;
+  const draw = () => {
+    const pick = shopPicker(() => { D.cat = ''; saveD(); draw(); }); const sid = ST.shopSel;
+    const cats = S.cats.filter(c => c.shop_id === sid); if (D.cat && !cats.some(c => c.id === D.cat)) D.cat = '';
+    main.innerHTML = `<div class="acts" style="margin-bottom:10px"><button class="btn s o" id="qBack">${ic(S.lang === 'ar' ? 'fwd' : 'back', 's')} ${esc(A('رجوع للمنتجات', 'Zurück zu Produkten'))}</button></div>
+      <h2 style="margin:0 0 4px">${esc(A('إضافة سريعة بالسكانر', 'Schnell erfassen'))}</h2>
+      <p class="note" style="margin:0 0 12px">${esc(A('امسح الباركود ← الاسم والصورة بيطلعوا لحالهن إذا المنتج معروف ← اكتب السعر ← اكبس Enter ← امسح اللي بعدو.', 'Barcode scannen → Name und Foto kommen automatisch, wenn das Produkt bekannt ist → Preis eingeben → Enter → nächstes scannen.'))}</p>
+      ${pick}
+      <div class="card qa-def"><h4 style="margin:0 0 8px">${esc(A('إعدادات لكل المنتجات الجاية', 'Gilt für alle folgenden Produkte'))}</h4>
+        <div class="row"><label class="f"><span>${esc(A('القسم', 'Kategorie'))}</span><select id="qCat"><option value="">—</option>${cats.map(c => `<option value="${c.id}" ${c.id === D.cat ? 'selected' : ''}>${esc(L(c, 'name'))}</option>`).join('')}</select></label>
+          <label class="f"><span>${esc(A('الوحدة', 'Einheit'))}</span><select id="qU"><option value="piece" ${D.unit === 'piece' ? 'selected' : ''}>${esc(A('قطعة', 'Stück'))}</option><option value="kg" ${D.unit === 'kg' ? 'selected' : ''}>${esc(A('بالكيلو', 'pro kg'))}</option></select></label></div>
+        <div class="row"><label class="f"><span>${esc(A('الضريبة', 'MwSt'))}</span><select id="qV">${[7, 19, 0].map(v => `<option ${+D.vat === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+          <label class="f"><span>Pfand €</span><input type="number" step="0.01" min="0" id="qPf" value="${esc(D.pfand)}"></label></div>
+        <label class="chk"><input type="checkbox" id="qTr" ${D.track ? 'checked' : ''}><span>${esc(A('تتبع المخزون', 'Bestand verfolgen'))}</span></label>
+        <label class="chk"><input type="checkbox" id="qLk" ${D.look ? 'checked' : ''}><span>${esc(A('جيب الاسم والصورة تلقائياً من الباركود (Open Food Facts)', 'Name und Foto automatisch suchen (Open Food Facts)'))}</span></label></div>
+      <div class="card qa-scan"><div class="qa-st" id="qSt"></div>
+        <div class="acts" style="flex-wrap:nowrap"><input type="text" id="qIn" inputmode="numeric" autocomplete="off" enterkeyhint="go" placeholder="${esc(A('امسح الباركود هون', 'Hier Barcode scannen'))}" style="flex:1;font-size:20px">
+          <button class="btn s o" id="qCam" title="Kamera">${ic('camera', 's')}</button><button class="btn s o" id="qNo">${esc(A('بلا باركود', 'Ohne Barcode'))}</button></div>
+        <div class="scanbox" id="qBox" style="margin-top:8px"></div></div>
+      <div id="qF"></div>
+      <div class="card"><h4 style="margin:0 0 6px">${esc(A('انضافوا هلق', 'Gerade angelegt'))} (<span id="qN">${added.length}</span>)</h4><div id="qL">${added.length ? '' : `<p class="note">${esc(A('لسا ما في', 'Noch keine'))}</p>`}</div></div>`;
+    const inp = $('#qIn');
+    const st = () => { const ok = document.activeElement === inp; $('#qSt').className = 'qa-st ' + (ok ? 'ok' : 'wait'); $('#qSt').textContent = ok ? A('جاهز: امسح المنتج', 'Bereit: jetzt scannen') : (cur ? A('كمّل المنتج تحت أو اكبس Enter للحفظ', 'Produkt unten ergänzen, Enter speichert') : A('اكبس على الخانة قبل ما تمسح', 'Vor dem Scannen in das Feld tippen')); };
+    inp.onfocus = st; inp.onblur = () => setTimeout(st, 50); st();
+    inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); const c = inp.value.trim(); inp.value = ''; if (c) scanned(c); } };
+    $('#qBack').onclick = () => { stopCamera(); back(); };
+    $('#qCat').onchange = e => { D.cat = e.target.value; saveD(); };
+    $('#qU').onchange = e => { D.unit = e.target.value; saveD(); };
+    $('#qV').onchange = e => { D.vat = +e.target.value; saveD(); };
+    $('#qPf').oninput = e => { D.pfand = parseFloat(String(e.target.value).replace(',', '.')) || 0; saveD(); };
+    $('#qTr').onchange = e => { D.track = e.target.checked; saveD(); if (cur) form(); };
+    $('#qLk').onchange = e => { D.look = e.target.checked; saveD(); };
+    $('#qNo').onclick = () => scanned('');
+    $('#qCam').onclick = () => { if (ST.scanStop) { stopCamera(); return; } startCamera($('#qBox'), c => scanned(String(c).trim())); };
+    paintList(); if (cur) form(); setTimeout(() => inp.focus(), 50);
+  };
+  const paintList = () => {
+    if (!$('#qL')) return; $('#qN').textContent = added.length;
+    if (!added.length) return;
+    $('#qL').innerHTML = added.slice(0, 60).map(p => `<div class="li" data-qe="${p.id}" style="cursor:pointer"><div class="thumb" style="${bgImg(p.image_url)}"></div><div class="t"><b>${esc(p.name_de)}</b><small>${App.priceLabel(p)}${p.barcode ? ' • ' + esc(p.barcode) : ''}</small></div></div>`).join('');
+    $$('[data-qe]').forEach(el => el.onclick = () => { const p = prodBy(el.dataset.qe); if (p) editProduct(p, () => { added = added.map(x => x.id === p.id ? prodBy(p.id) || x : x); draw(); }); });
+  };
+  const scanned = async code => {
+    if (busy) return;
+    if (cur && cur.dirty()) { const ok = await save(); if (!ok) { if (cur && code) { cur.next = code; toast(A('كمّل هالمنتج أول. بعد الحفظ بيفتح المنتج اللي مسحتو.', 'Erst dieses Produkt fertig machen. Danach öffnet sich das gescannte.'), 1); } return; } }
+    beepOk();
+    const sid = ST.shopSel;
+    const ex = code && (S.products.find(x => x.barcode === code && x.shop_id === sid) || S.products.find(x => x.barcode === code && myShops().some(s => s.id === x.shop_id)));
+    if (ex) { cur = { ex, dirty: () => false }; return form(); }
+    cur = { code, name_de: '', name_ar: '', price: '', vat: D.vat, pfand: D.pfand, stock: D.stock, allergens: [], img: null, imgUrl: '', loading: !!(code && D.look && /^\d{8,14}$/.test(code)), dirty: () => !!(cur && !cur.ex && (cur.name_de || cur.name_ar || cur.price)) };
+    form();
+    if (cur.loading) {
+      const mine = cur; const pr = await offLookup(code); if (cur !== mine) return;
+      mine.loading = false;
+      if (pr) {
+        const brand = String(pr.brands || '').split(',')[0].trim(); let n = String(pr.product_name_de || pr.product_name || '').trim();
+        if (brand && n && !n.toLowerCase().includes(brand.toLowerCase())) n = brand + ' ' + n;
+        if (pr.quantity && n && !n.includes(pr.quantity)) n += ' ' + String(pr.quantity).trim();
+        if (!mine.name_de) mine.name_de = n.slice(0, 120); if (!mine.name_ar && pr.product_name_ar) mine.name_ar = String(pr.product_name_ar).trim().slice(0, 120);
+        mine.allergens = (pr.allergens_tags || []).map(x => OFF_ALG[x]).filter(Boolean);
+        const cats = pr.categories_tags || [];
+        if (cats.includes('en:beverages') && !cats.some(c => /milks?$|dairies|dairy-drinks/.test(c))) { mine.vat = 19; mine.vatHint = true; }
+        mine.found = true;
+        offImage(pr.image_front_url).then(b => { if (b && cur === mine) { mine.img = b; mine.imgUrl = URL.createObjectURL(b); const t = $('#qImg'); if (t) t.style.backgroundImage = `url('${mine.imgUrl}')`; } });
+      } else mine.found = false;
+      form(true);
+    }
+  };
+  const form = keepFocus => {
+    const box = $('#qF'); if (!box) return;
+    if (!cur) { box.innerHTML = ''; return; }
+    if (cur.ex) {
+      const p = cur.ex;
+      box.innerHTML = `<div class="card qa-f"><div class="pill">${esc(A('موجود من قبل', 'Schon vorhanden'))}</div><div class="li"><div class="thumb" style="${bgImg(p.image_url)}"></div><div class="t"><b>${esc(L(p, 'name'))}</b><small>${esc(L(App.shopById(p.shop_id), 'name'))} • ${esc(p.barcode)}</small></div></div>
+        <div class="row"><label class="f"><span>${esc(A('السعر €', 'Preis €'))}</span><input type="number" step="0.01" min="0" inputmode="decimal" id="qxP" value="${esc(p.price)}"></label>
+        ${p.track_stock ? `<label class="f"><span>${esc(A('زيد عالمخزون', 'Bestand +'))}</span><input type="number" step="1" id="qxS" placeholder="0"></label>` : ''}</div>
+        <div class="acts"><button class="btn" id="qxSave" style="flex:1">${esc(A('حفظ (Enter)', 'Speichern (Enter)'))}</button><button class="btn o" id="qxEd">${esc(A('تعديل كامل', 'Alles bearbeiten'))}</button><button class="btn o" id="qxSk">${esc(A('تخطي', 'Weiter'))}</button></div></div>`;
+      const go = async () => {
+        const np = parseFloat(String($('#qxP').value).replace(',', '.')); const add = $('#qxS') ? parseFloat(String($('#qxS').value).replace(',', '.')) || 0 : 0;
+        if (!isNaN(np) && np !== +p.price) { const { error } = await sb.from('products').update({ price: np }).eq('id', p.id); if (error) return err(error); p.price = np; }
+        if (add) { const { data, error } = await sb.rpc('stock_adjust', { p_product: p.id, p_delta: add, p_reason: 'receive', p_ref: 'Schnell erfassen' }); if (error) return err(error); p.stock = data; }
+        toast('✓ ' + p.name_de); cur = null; form(); $('#qIn').focus();
+      };
+      $('#qxSave').onclick = go; $('#qxSk').onclick = () => { cur = null; form(); $('#qIn').focus(); };
+      $('#qxEd').onclick = () => { const q = p; cur = null; editProduct(q, () => draw()); };
+      $$('#qF input').forEach(i => i.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); go(); } else if (e.key === 'Escape') { cur = null; form(); $('#qIn').focus(); } });
+      const pi = $('#qxP'); pi.focus(); pi.select(); return;
+    }
+    const c = cur;
+    box.innerHTML = `<div class="card qa-f">
+      <div class="li" style="align-items:center"><div class="thumb" id="qImg" style="width:64px;height:64px;${c.imgUrl ? `background-image:url('${c.imgUrl}')` : ''}"></div>
+        <div class="t"><b>${c.code ? esc(c.code) : esc(A('منتج بلا باركود', 'Ohne Barcode'))}</b><small>${c.loading ? esc(A('عم دوّر على المنتج…', 'Suche Produktdaten…')) : c.found ? esc(A('لقيت الاسم ✓ اتأكد منو', 'Gefunden ✓ bitte prüfen')) : c.found === false ? esc(A('ما لقيتو، اكتب الاسم', 'Nicht gefunden, Name eingeben')) : ''}</small></div>
+        ${c.img || c.imgUrl ? '' : `<label class="btn s o" style="cursor:pointer">${ic('camera', 's')}<input type="file" accept="image/*" capture="environment" id="qPh" hidden></label>`}</div>
+      <div class="row"><label class="f"><span>Name Deutsch *</span><input type="text" id="qNd" value="${esc(c.name_de)}" maxlength="120"></label>
+        <label class="f"><span>الاسم بالعربي</span><input type="text" id="qNa" dir="rtl" value="${esc(c.name_ar)}" maxlength="120" placeholder="${esc(A('إذا تركتو فاضي بينحط الألماني', 'leer = wie Deutsch'))}"></label></div>
+      <div class="row3"><label class="f"><span>${esc(A('السعر €', 'Preis €'))} *</span><input type="number" step="0.01" min="0" inputmode="decimal" id="qP" value="${esc(c.price)}"></label>
+        <label class="f"><span>${esc(A('الضريبة', 'MwSt'))}${c.vatHint ? ' ⓘ' : ''}</span><select id="qVv">${[7, 19, 0].map(v => `<option ${+c.vat === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+        <label class="f"><span>Pfand €</span><input type="number" step="0.01" min="0" id="qPf2" value="${esc(c.pfand)}"></label></div>
+      ${D.track ? `<label class="f"><span>${esc(A('الكمية بالمخزون', 'Bestand'))}</span><input type="number" step="1" min="0" id="qS" value="${esc(c.stock)}"></label>` : ''}
+      ${c.vatHint ? `<p class="note" style="margin:0">${esc(A('ⓘ مشروب: الضريبة 19% عادةً (إلا الحليب).', 'ⓘ Getränk: meist 19 % MwSt (außer Milch).'))}</p>` : ''}
+      ${c.allergens.length ? `<p class="note" style="margin:4px 0 0">${esc(A('مسببات الحساسية', 'Allergene'))}: ${esc(c.allergens.map(a => ALLERGENS[a][S.lang === 'ar' ? 0 : 1]).join(', '))}</p>` : ''}
+      <div class="acts" style="margin-top:10px"><button class="btn" id="qSave" style="flex:1">${esc(A('حفظ (Enter)', 'Speichern (Enter)'))}</button><button class="btn o" id="qSk">${esc(A('تخطي (Esc)', 'Verwerfen (Esc)'))}</button></div></div>`;
+    const bind = (id, k) => { const el = $(id); if (el) el.oninput = () => { c[k] = el.value; }; };
+    bind('#qNd', 'name_de'); bind('#qNa', 'name_ar'); bind('#qP', 'price'); bind('#qS', 'stock'); bind('#qPf2', 'pfand');
+    $('#qVv').onchange = e => { c.vat = +e.target.value; };
+    if ($('#qPh')) $('#qPh').onchange = e => { const f = e.target.files[0]; if (!f) return; c.img = f; c.imgUrl = URL.createObjectURL(f); $('#qImg').style.backgroundImage = `url('${c.imgUrl}')`; };
+    $('#qSave').onclick = () => save();
+    $('#qSk').onclick = () => { cur = null; form(); $('#qIn').focus(); };
+    $$('#qF input, #qF select').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } else if (e.key === 'Escape') { cur = null; form(); $('#qIn').focus(); } }));
+    if (!keepFocus || document.activeElement === $('#qIn') || !document.activeElement || document.activeElement === document.body) { const f = c.loading ? $('#qNd') : c.name_de ? $('#qP') : $('#qNd'); f.focus(); }
+  };
+  const save = async () => {
+    const c = cur; if (!c || c.ex || busy) return !c;
+    const num = v => parseFloat(String(v).replace(',', '.'));
+    const name_de = String(c.name_de || '').trim(), name_ar = String(c.name_ar || '').trim(), price = num(c.price);
+    if (!name_de && !name_ar) { toast(A('اكتب اسم المنتج', 'Name fehlt'), 1); $('#qNd') && $('#qNd').focus(); return false; }
+    if (isNaN(price) || price < 0 || String(c.price).trim() === '') { toast(A('اكتب السعر', 'Preis fehlt'), 1); $('#qP') && $('#qP').focus(); return false; }
+    const sid = ST.shopSel; busy = true; $('#qSave') && ($('#qSave').disabled = true);
+    try {
+      let image_url = null;
+      if (c.img) { try { image_url = await uploadImage(c.img, sid, 700); } catch (_) { image_url = null; } }
+      const unit = D.unit; const stock = D.track ? (num(c.stock) || 0) : 0;
+      const o = { shop_id: sid, name_de: name_de || name_ar, name_ar: name_ar || name_de, price, unit, step: unit === 'kg' ? 0.25 : 1, min_qty: unit === 'kg' ? 0.25 : 1, barcode: c.code || null, category_id: D.cat || null,
+        vat: [0, 7, 19].includes(+c.vat) ? +c.vat : 7, pfand: num(c.pfand) || 0, track_stock: D.track, stock, allergens: c.allergens || [], image_url, active: true };
+      const { data, error } = await sb.from('products').insert(o).select().single();
+      if (error) { err(error); return false; }
+      if (stock) { const u = (await sb.auth.getUser()).data.user; await sb.from('stock_moves').insert({ product_id: data.id, shop_id: sid, delta: stock, reason: 'start', user_id: u && u.id }).then(() => {}, () => {}); }
+      const nx = c.next;
+      S.products.push(data); added.unshift(data); cur = null; beepOk(); toast('✓ ' + data.name_de);
+      form(); paintList(); $('#qIn') && $('#qIn').focus(); if (nx) setTimeout(() => scanned(nx), 300); return true;
+    } finally { busy = false; if ($('#qSave')) $('#qSave').disabled = false; }
+  };
+  // Handscanner tippen sehr schnell und drücken Enter. Wenn so ein Scan in einem Formularfeld landet
+  // (z. B. im Preisfeld), nehmen wir die Ziffern wieder raus und behandeln es als neuen Scan.
+  const buf = { s: '', t0: 0, last: 0, el: null, before: '' };
+  const onKey = e => {
+    if (!document.body.contains(main) || !$('#qIn')) { document.removeEventListener('keydown', onKey, true); return; }
+    const el = e.target; if (!el || el.id === 'qIn' || !el.closest || !el.closest('#qF')) return;
+    const now = performance.now();
+    if (e.key && e.key.length === 1) { if (now - buf.last > 60 || buf.el !== el) { buf.s = ''; buf.t0 = now; buf.el = el; buf.before = el.value; } buf.s += e.key; buf.last = now; return; }
+    if (e.key === 'Enter' && buf.el === el && buf.s.length >= 6 && now - buf.last < 80 && (buf.last - buf.t0) / (buf.s.length - 1) < 35) {
+      e.preventDefault(); e.stopImmediatePropagation();
+      const code = buf.s.trim(); el.value = buf.before; el.dispatchEvent(new Event('input')); buf.s = ''; scanned(code);
+    }
+  };
+  document.addEventListener('keydown', onKey, true);
+  draw();
+}
 async function reloadAll() { try { await App.loadData(); } catch (e) { err(e); } }
 function compressImage(file, max) {
   return new Promise((res, rej) => { const img = new Image(); const url = URL.createObjectURL(file);
@@ -967,7 +1134,7 @@ async function secCustomers(main) {
 }
 
 /* ---------- settings ---------- */
-const APPVER = '2026.11.23-15';
+const APPVER = '2026.11.23-16';
 const SETSEC = [
   ['general', 'store', 'معلومات المحل', 'Geschäftsdaten', 'الاسم، العنوان، Impressum', 'Name, Adresse, Impressum'],
   ['orders', 'inbox', 'استقبال الطلبات', 'Bestellannahme', 'إيقاف مؤقت، طلب مسبق، حد أدنى', 'Pause, Vorbestellung, Mindestwert'],

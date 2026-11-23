@@ -637,3 +637,10 @@ h2.cat i{width:46px;height:46px;border-radius:50%;background:center/cover no-rep
 .wrap.gl>.shead:first-child{margin-inline:calc(50% - 50vw)}
 .shead .in{max-width:1180px;margin-inline:auto;padding-inline:max(16px,calc(50vw - 574px))}
 @media(min-width:1210px){.shead .in{padding-inline:16px}}
+
+/* Schnell erfassen */
+.qa-st{font-weight:700;border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:15px}
+.qa-st.ok{background:#E3EED9;color:#2F5A1E}.qa-st.wait{background:#F6E3D6;color:#8A3B12}
+.qa-scan #qIn:focus{outline:3px solid #6B8F3A;outline-offset:1px}
+.qa-f{border:2px solid var(--ink)}
+.qa-f .pill{display:inline-block;margin-bottom:6px}
