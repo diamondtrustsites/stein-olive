@@ -160,7 +160,7 @@ textarea{min-height:76px;resize:vertical}
 h2.cat{font-size:19px;margin:22px 0 10px}
 
 /* modal / sheet */
-.modal{position:fixed;inset:0;z-index:60;background:rgba(20,22,16,.5);display:flex;align-items:flex-end;justify-content:center}
+.modal{position:fixed;inset:0;z-index:68;background:rgba(20,22,16,.5);display:flex;align-items:flex-end;justify-content:center}
 .sheet{background:var(--surface);width:min(620px,100%);max-height:94vh;overflow:auto;border-radius:var(--r3) var(--r3) 0 0;padding:20px 18px calc(22px + env(safe-area-inset-bottom));animation:up .22s ease-out}
 @media(min-width:700px){.modal{align-items:center}.sheet{border-radius:var(--r3)}}
 @keyframes up{from{transform:translateY(30px);opacity:0}}
