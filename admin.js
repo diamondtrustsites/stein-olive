@@ -457,7 +457,7 @@ async function secProducts(main) {
     };
     $('#pq').oninput = list; $('#pc').onchange = list; list();
     $('#pAdd').onclick = () => editProduct({ shop_id: sid }, draw);
-    $('#pQuick').onclick = () => quickAdd(main, () => secProducts(main));
+    $('#pQuick').onclick = () => scanAdd(main, () => secProducts(main));
     $('#pCats').onclick = () => editCats(sid, draw);
     $('#pImp').onclick = () => importCsv(sid, draw);
     $('#pExp').onclick = () => exportCsv(sid);
@@ -498,18 +498,61 @@ async function eanLookup(code) {
   try { return await eanCall({ mode: 'lookup', code }); }
   catch (_) { const pr = await offLookup(code); return pr ? { found: true, source: 'off', product: { name_de: [String(pr.brands || '').split(',')[0].trim(), pr.product_name_de || pr.product_name, pr.quantity].filter(Boolean).join(' ').slice(0, 120), name_ar: pr.product_name_ar || '', image_url: pr.image_front_url, allergens: (pr.allergens_tags || []).map(x => OFF_ALG[x]).filter(Boolean), bev: (pr.categories_tags || []).includes('en:beverages') } } : { found: false }; }
 }
-// Einheitliches Produktfoto: quadratisch, weißer Hintergrund. Hat das Bild schon weißen Rand → zuschneiden + mittig mit Abstand.
-async function proFrame(blob) {
+/* ---------- Profi-Foto: Hintergrund weg → weiß → quadratisch, Produkt mittig ---------- */
+// Hintergrund-Entfernung läuft komplett im Browser (lib/bg, IS-Net), ohne Kosten und ohne Upload zu Fremden.
+let bgW = null, bgSeq = 0; const bgJobs = {};
+function bgWorker() {
+  if (bgW) return bgW;
+  bgW = new Worker(new URL('lib/bg/bg-worker.js', document.baseURI), { type: 'module' });
+  bgW.onmessage = e => { const j = bgJobs[e.data.id]; if (!j) return; delete bgJobs[e.data.id]; if (e.data.error) j.rej(new Error(e.data.error)); else j.res(e.data.mask); };
+  bgW.onerror = () => { Object.keys(bgJobs).forEach(k => { bgJobs[k].rej(new Error('worker')); delete bgJobs[k]; }); try { bgW.terminate(); } catch (_) {} bgW = null; };
+  return bgW;
+}
+function bgMask(bitmap) {
+  return new Promise((res, rej) => {
+    const id = ++bgSeq; bgJobs[id] = { res, rej };
+    try { bgWorker().postMessage({ id, bitmap }, [bitmap]); } catch (e) { delete bgJobs[id]; rej(e); return; }
+    setTimeout(() => { if (bgJobs[id]) { delete bgJobs[id]; rej(new Error('timeout')); } }, 180000);
+  });
+}
+// Anteil weißer Pixel am Bildrand (1 = komplett weißer Rand)
+function whiteEdge(d, W, H) {
+  const wh = (x, y) => { const i = (y * W + x) * 4; return d[i + 3] < 20 || (d[i] > 236 && d[i + 1] > 236 && d[i + 2] > 236); };
+  let n = 0, ok = 0; const st = Math.max(1, Math.round((W + H) / 600));
+  for (let i = 0; i < W; i += st) { n += 2; ok += wh(i, 0) + wh(i, H - 1); }
+  for (let j = 0; j < H; j += st) { n += 2; ok += wh(0, j) + wh(W - 1, j); }
+  return n ? ok / n : 0;
+}
+async function proFrame(blob, opt) {
+  opt = opt || {};
   try {
-    const bmp = await createImageBitmap(blob); const W = bmp.width, H = bmp.height; if (!W || !H) return blob;
-    const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
-    x.fillStyle = '#fff'; x.fillRect(0, 0, W, H); x.drawImage(bmp, 0, 0);
-    const d = x.getImageData(0, 0, W, H).data; const wh = (px, py) => { const i = (py * W + px) * 4; return d[i] > 236 && d[i + 1] > 236 && d[i + 2] > 236; };
-    let n = 0, ok = 0; const st = Math.max(1, Math.round((W + H) / 600));
-    for (let i = 0; i < W; i += st) { n += 2; ok += wh(i, 0) + wh(i, H - 1); }
-    for (let j = 0; j < H; j += st) { n += 2; ok += wh(0, j) + wh(W - 1, j); }
-    let x0 = 0, y0 = 0, x1 = W - 1, y1 = H - 1; const white = n && ok / n > 0.8;
+    const bmp = await createImageBitmap(blob); let W = bmp.width, H = bmp.height; if (!W || !H) return blob;
+    const sc0 = Math.min(1, 1600 / Math.max(W, H)); W = Math.round(W * sc0); H = Math.round(H * sc0);
+    const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d', { willReadFrequently: true });
+    x.fillStyle = '#fff'; x.fillRect(0, 0, W, H); x.drawImage(bmp, 0, 0, W, H);
+    let d = x.getImageData(0, 0, W, H).data;
+    let white = whiteEdge(d, W, H) > 0.8;
+    if (!white && opt.cut) {
+      // Hintergrund entfernen
+      try {
+        opt.onCut && opt.onCut();
+        const mask = await bgMask(await createImageBitmap(c));
+        const mc = document.createElement('canvas'); mc.width = 1024; mc.height = 1024; const mx = mc.getContext('2d');
+        const md = mx.createImageData(1024, 1024); for (let i = 0; i < mask.length; i++) { md.data[i * 4 + 3] = mask[i]; }
+        mx.putImageData(md, 0, 0);
+        const fg = document.createElement('canvas'); fg.width = W; fg.height = H; const fx = fg.getContext('2d');
+        fx.drawImage(bmp, 0, 0, W, H); fx.globalCompositeOperation = 'destination-in'; fx.imageSmoothingQuality = 'high'; fx.drawImage(mc, 0, 0, W, H);
+        let covered = 0; const fd = fx.getImageData(0, 0, W, H).data; for (let i = 3; i < fd.length; i += 16) if (fd[i] > 128) covered++;
+        const ratio = covered / (fd.length / 16);
+        if (ratio > 0.03 && ratio < 0.97) { // sinnvolles Ergebnis → übernehmen
+          x.globalCompositeOperation = 'source-over'; x.fillStyle = '#fff'; x.fillRect(0, 0, W, H); x.drawImage(fg, 0, 0);
+          d = x.getImageData(0, 0, W, H).data; white = true; opt.cutDone = true;
+        }
+      } catch (e) { console.warn('bg', e); opt.cutFail = true; }
+    }
+    let x0 = 0, y0 = 0, x1 = W - 1, y1 = H - 1;
     if (white) {
+      const wh = (px, py) => { const i = (py * W + px) * 4; return d[i] > 240 && d[i + 1] > 240 && d[i + 2] > 240; };
       x0 = W; y0 = H; x1 = 0; y1 = 0;
       for (let j = 0; j < H; j += 2) for (let i = 0; i < W; i += 2) if (!wh(i, j)) { if (i < x0) x0 = i; if (i > x1) x1 = i; if (j < y0) y0 = j; if (j > y1) y1 = j; }
       if (x1 <= x0 || y1 <= y0) { x0 = 0; y0 = 0; x1 = W - 1; y1 = H - 1; }
@@ -519,6 +562,7 @@ async function proFrame(blob) {
     const o = document.createElement('canvas'); o.width = S; o.height = S; const ox = o.getContext('2d');
     ox.fillStyle = '#fff'; ox.fillRect(0, 0, S, S); ox.imageSmoothingQuality = 'high';
     ox.drawImage(c, x0, y0, cw, chh, (S - dw) / 2, (S - dh) / 2, dw, dh);
+    opt.white = white;
     return await new Promise(r => o.toBlob(b => r(b || blob), 'image/jpeg', 0.9));
   } catch (_) { return blob; }
 }
@@ -546,174 +590,250 @@ function eanImportDlg() {
     } finally { run = false; if (document.body.contains(root)) { $('#eiGo', root).disabled = false; $('#eiStop', root).hidden = true; } }
   };
 }
-function quickAdd(main, back, firstCode) {
-  const D = Object.assign({ cat: '', vat: 7, unit: 'piece', track: false, stock: '', pfand: 0, look: true, pro: true }, JSON.parse(localStorage.getItem('so_qa') || '{}'));
-  const saveD = () => localStorage.setItem('so_qa', JSON.stringify(D));
-  let cur = null; let added = []; let busy = false;
+/* ---------- Schnell erfassen: viele Produkte scannen → Liste → alle (oder einzeln) bestätigen und anlegen ---------- */
+function scanAdd(main, back, firstCode) {
+  const D = Object.assign({ cat: '', vat: 7, unit: 'piece', track: true, pfand: 0, look: true, pro: true, cut: true }, JSON.parse(localStorage.getItem('so_qa') || '{}'));
+  const saveD = () => { try { localStorage.setItem('so_qa', JSON.stringify(D)); } catch (_) {} };
+  let items = []; let added = []; let seq = 0; let camOn = false;
+  const num = v => parseFloat(String(v == null ? '' : v).replace(',', '.'));
+  const byKey = k => items.find(i => i.key === +k);
   const draw = () => {
     const pick = shopPicker(() => { D.cat = ''; saveD(); draw(); }); const sid = ST.shopSel;
     const cats = S.cats.filter(c => c.shop_id === sid); if (D.cat && !cats.some(c => c.id === D.cat)) D.cat = '';
     main.innerHTML = `<div class="acts" style="margin-bottom:10px"><button class="btn s o" id="qBack">${ic(S.lang === 'ar' ? 'fwd' : 'back', 's')} ${esc(A('رجوع للمنتجات', 'Zurück zu Produkten'))}</button></div>
       <h2 style="margin:0 0 4px">${esc(A('إضافة سريعة بالسكانر', 'Schnell erfassen'))}</h2>
-      <p class="note" style="margin:0 0 12px">${esc(A('امسح الباركود ← الاسم والصورة بيطلعوا لحالهن إذا المنتج معروف ← اكتب السعر ← اكبس Enter ← امسح اللي بعدو.', 'Barcode scannen → Name und Foto kommen automatisch, wenn das Produkt bekannt ist → Preis eingeben → Enter → nächstes scannen.'))}</p>
+      <p class="note" style="margin:0 0 10px">${esc(A('امسح كل المنتجات ورا بعض ← كل منتج بينزل باللستة مع اسمو وصورتو ← اكتب السعر والكمية ← بالآخر اكبس «إضافة الكل».', 'Alle Produkte nacheinander scannen → jedes erscheint mit Name und Foto → Preis und Menge eintragen → am Ende „Alle hinzufügen“.'))}</p>
       ${pick}
-      <div class="card qa-def"><h4 style="margin:0 0 8px">${esc(A('إعدادات لكل المنتجات الجاية', 'Gilt für alle folgenden Produkte'))}</h4>
-        <div class="row"><label class="f"><span>${esc(A('القسم', 'Kategorie'))}</span><select id="qCat"><option value="">—</option>${cats.map(c => `<option value="${c.id}" ${c.id === D.cat ? 'selected' : ''}>${esc(L(c, 'name'))}</option>`).join('')}</select></label>
+      <details class="card qa-def"${localStorage.getItem('so_qa_open') === '1' ? ' open' : ''}><summary><b>${esc(A('⚙️ إعدادات لكل المنتجات الجاية', '⚙️ Einstellungen für alle folgenden Produkte'))}</b></summary>
+        <div class="row" style="margin-top:8px"><label class="f"><span>${esc(A('القسم', 'Kategorie'))}</span><select id="qCat"><option value="">—</option>${cats.map(c => `<option value="${c.id}" ${c.id === D.cat ? 'selected' : ''}>${esc(L(c, 'name'))}</option>`).join('')}</select></label>
           <label class="f"><span>${esc(A('الوحدة', 'Einheit'))}</span><select id="qU"><option value="piece" ${D.unit === 'piece' ? 'selected' : ''}>${esc(A('قطعة', 'Stück'))}</option><option value="kg" ${D.unit === 'kg' ? 'selected' : ''}>${esc(A('بالكيلو', 'pro kg'))}</option></select></label></div>
         <div class="row"><label class="f"><span>${esc(A('الضريبة', 'MwSt'))}</span><select id="qV">${[7, 19, 0].map(v => `<option ${+D.vat === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
           <label class="f"><span>Pfand €</span><input type="number" step="0.01" min="0" id="qPf" value="${esc(D.pfand)}"></label></div>
-        <label class="chk"><input type="checkbox" id="qTr" ${D.track ? 'checked' : ''}><span>${esc(A('تتبع المخزون', 'Bestand verfolgen'))}</span></label>
+        <label class="chk"><input type="checkbox" id="qTr" ${D.track ? 'checked' : ''}><span>${esc(A('تتبع المخزون (الكمية)', 'Bestand verfolgen (Menge)'))}</span></label>
         <label class="chk"><input type="checkbox" id="qLk" ${D.look ? 'checked' : ''}><span>${esc(A('جيب الاسم والصورة تلقائياً (الملف ← Open Food Facts ← جوجل)', 'Name und Foto automatisch suchen (Datei → Open Food Facts → Google)'))}</span></label>
-        <label class="chk"><input type="checkbox" id="qPro" ${D.pro ? 'checked' : ''}><span>${esc(A('📸 دوّر على صورة احترافية بخلفية بيضا (من المتاجر)', '📸 Profi-Foto mit weißem Hintergrund suchen (aus Online-Shops)'))}</span></label>
-        ${S.staff && S.staff.role === 'admin' ? `<button class="btn s o" id="qImp" style="margin-top:8px">${esc(A('📦 قاعدة المنتجات (تحميل مرة وحدة)', '📦 Produktdatei laden (einmalig)'))}</button>` : ''}</div>
-      <div class="card qa-scan"><div class="qa-st" id="qSt"></div>
+        <label class="chk"><input type="checkbox" id="qPro" ${D.pro ? 'checked' : ''}><span>${esc(A('📸 دوّر على صورة احترافية من المتاجر', '📸 Profi-Foto aus Online-Shops suchen'))}</span></label>
+        <label class="chk"><input type="checkbox" id="qCut" ${D.cut ? 'checked' : ''}><span>${esc(A('🪄 شيل خلفية الصورة وخليها بيضا (أول مرة بينزّل ملف ~60MB)', '🪄 Hintergrund entfernen → weiß (beim 1. Mal ~60 MB Download)'))}</span></label>
+        ${S.staff && S.staff.role === 'admin' ? `<button class="btn s o" id="qImp" style="margin-top:8px">${esc(A('📦 قاعدة المنتجات (تحميل مرة وحدة)', '📦 Produktdatei laden (einmalig)'))}</button>` : ''}</details>
+      <div class="card qa-scan" id="qScan"><div class="qa-st" id="qSt"></div>
         <div class="acts" style="flex-wrap:nowrap"><input type="text" id="qIn" inputmode="numeric" autocomplete="off" enterkeyhint="go" placeholder="${esc(A('امسح الباركود هون', 'Hier Barcode scannen'))}" style="flex:1;font-size:20px">
           <button class="btn s o" id="qCam" title="Kamera">${ic('camera', 's')}</button><button class="btn s o" id="qNo">${esc(A('بلا باركود', 'Ohne Barcode'))}</button></div>
-        <div class="scanbox" id="qBox" style="margin-top:8px"></div></div>
-      <div id="qF"></div>
-      <div class="card"><h4 style="margin:0 0 6px">${esc(A('انضافوا هلق', 'Gerade angelegt'))} (<span id="qN">${added.length}</span>)</h4><div id="qL">${added.length ? '' : `<p class="note">${esc(A('لسا ما في', 'Noch keine'))}</p>`}</div></div>`;
+        <div class="scanbox qa-cam" id="qBox" style="margin-top:8px"></div></div>
+      <div id="qList"></div>
+      <div class="card" id="qDone"${added.length ? '' : ' hidden'}><h4 style="margin:0 0 6px">${esc(A('انضافوا هلق', 'Gerade angelegt'))} (<span id="qN">${added.length}</span>)</h4><div id="qL"></div></div>
+      <div class="qa-bar" id="qBar"><button class="btn" id="qAll" style="flex:1"></button></div>`;
     const inp = $('#qIn');
-    const st = () => { const ok = document.activeElement === inp; $('#qSt').className = 'qa-st ' + (ok ? 'ok' : 'wait'); $('#qSt').textContent = ok ? A('جاهز: امسح المنتج', 'Bereit: jetzt scannen') : (cur ? A('كمّل المنتج تحت أو اكبس Enter للحفظ', 'Produkt unten ergänzen, Enter speichert') : A('اكبس على الخانة قبل ما تمسح', 'Vor dem Scannen in das Feld tippen')); };
     inp.onfocus = st; inp.onblur = () => setTimeout(st, 50); st();
     inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); const c = inp.value.trim(); inp.value = ''; if (c) scanned(c); } };
-    $('#qBack').onclick = () => { stopCamera(); back(); };
+    $('#qBack').onclick = () => { stopCamera(); camOn = false; if (items.length && !confirm(A('في منتجات لسا ما انضافت. أكيد بدك ترجع؟', 'Es gibt noch nicht hinzugefügte Produkte. Wirklich zurück?'))) return; document.removeEventListener('keydown', onKey, true); back(); };
+    $('details.qa-def').ontoggle = e => { try { localStorage.setItem('so_qa_open', e.target.open ? '1' : '0'); } catch (_) {} };
     $('#qCat').onchange = e => { D.cat = e.target.value; saveD(); };
     $('#qU').onchange = e => { D.unit = e.target.value; saveD(); };
     $('#qV').onchange = e => { D.vat = +e.target.value; saveD(); };
-    $('#qPf').oninput = e => { D.pfand = parseFloat(String(e.target.value).replace(',', '.')) || 0; saveD(); };
-    $('#qTr').onchange = e => { D.track = e.target.checked; saveD(); if (cur) form(); };
+    $('#qPf').oninput = e => { D.pfand = num(e.target.value) || 0; saveD(); };
+    $('#qTr').onchange = e => { D.track = e.target.checked; saveD(); items.forEach(paintItem); };
     $('#qLk').onchange = e => { D.look = e.target.checked; saveD(); };
     $('#qPro').onchange = e => { D.pro = e.target.checked; saveD(); };
-    $('#qNo').onclick = () => scanned('');
+    $('#qCut').onchange = e => { D.cut = e.target.checked; saveD(); };
     if ($('#qImp')) $('#qImp').onclick = () => eanImportDlg();
-    $('#qCam').onclick = () => { if (ST.scanStop) { stopCamera(); return; } startCamera($('#qBox'), c => scanned(String(c).trim())); };
-    paintList(); if (cur) form(); else setTimeout(() => inp.focus(), 50);
+    $('#qNo').onclick = () => scanned('');
+    $('#qCam').onclick = () => { if (ST.scanStop) { stopCamera(); camOn = false; $('#qScan').classList.remove('cam'); return; } camOn = true; $('#qScan').classList.add('cam'); startCamera($('#qBox'), c => scanned(String(c).trim())); };
+    $('#qAll').onclick = () => review(items);
+    paintAll(); paintDone();
+    if (!items.length) setTimeout(() => inp.focus(), 50);
   };
-  const paintList = () => {
-    if (!$('#qL')) return; $('#qN').textContent = added.length;
-    if (!added.length) return;
-    $('#qL').innerHTML = added.slice(0, 60).map(p => `<div class="li" data-qe="${p.id}" style="cursor:pointer"><div class="thumb" style="${bgImg(p.image_url)}"></div><div class="t"><b>${esc(p.name_de)}</b><small>${App.priceLabel(p)}${p.barcode ? ' • ' + esc(p.barcode) : ''}</small></div></div>`).join('');
-    $$('[data-qe]').forEach(el => el.onclick = () => { const p = prodBy(el.dataset.qe); if (p) editProduct(p, () => { added = added.map(x => x.id === p.id ? prodBy(p.id) || x : x); draw(); }); });
+  const st = () => {
+    const el = $('#qSt'); if (!el) return; const ok = document.activeElement === $('#qIn') || camOn;
+    el.className = 'qa-st ' + (ok ? 'ok' : 'wait');
+    el.textContent = ok ? A('جاهز: امسح المنتج', 'Bereit: jetzt scannen') : A('اكبس على الخانة أو شغّل الكاميرا قبل ما تمسح', 'Vor dem Scannen ins Feld tippen oder Kamera starten');
   };
+  const bar = () => {
+    const b = $('#qAll'); if (!b) return; const n = items.length;
+    $('#qBar').hidden = !n;
+    b.innerHTML = `${ic('check', 's')} ${esc(A(`إضافة الكل (${n})`, `Alle hinzufügen (${n})`))}`;
+  };
+  /* ----- eine Produkt-Karte ----- */
+  const status = it => {
+    if (it.loading) return A('عم دوّر على المنتج…', 'Suche Produktdaten…');
+    if (it.cutBusy) return A('🪄 عم شيل الخلفية…', '🪄 Hintergrund wird entfernt…');
+    if (it.proBusy) return A('📸 عم دوّر على صورة احترافية…', '📸 Suche Profi-Foto…');
+    if (it.ex) return A('موجود من قبل – بتقدر تغيّر السعر أو تزيد عالمخزون', 'Schon vorhanden – Preis ändern oder Bestand erhöhen');
+    if (it.found) return (it.src === 'google' ? A('لقيتو بالإنترنت', 'Im Internet gefunden') : it.src === 'file' ? A('من ملف المنتجات ✓', 'Aus der Produktdatei ✓') : A('لقيت الاسم ✓ اتأكد منو', 'Gefunden ✓ bitte prüfen')) + (it.pro || it.cutDone ? A(' • صورة احترافية ✓', ' • Profi-Foto ✓') : '');
+    if (it.found === false) return it.quota ? A('ما لقيتو (حد البحث بالإنترنت خلص لليوم)، اكتب الاسم', 'Nicht gefunden (Internet-Limit für heute), Name eingeben') : A('ما لقيتو، اكتب الاسم أو صوّرو', 'Nicht gefunden, Name eingeben oder fotografieren');
+    return '';
+  };
+  const itemHtml = it => {
+    const p = it.ex; const img = it.imgUrl ? `background-image:url('${it.imgUrl}')` : (p ? bgImg(p.image_url) : '');
+    return `<div class="qa-it${it.ask ? ' ask' : ''}${it.err ? ' bad' : ''}" data-k="${it.key}">
+      <div class="qa-h"><div class="thumb qa-th" style="${img}">${it.cutBusy || it.loading ? '<i class="qa-spin"></i>' : ''}</div>
+        <div class="t"><b dir="ltr">${it.code ? esc(it.code) : esc(A('منتج بلا باركود', 'Ohne Barcode'))}</b><small>${esc(status(it))}</small></div>
+        <div class="qa-tools"><label class="ib" title="${esc(A('صوّر', 'Foto'))}">${ic('camera', 's')}<input type="file" accept="image/*" capture="environment" data-ph hidden></label>
+          ${p || it.loading ? '' : `<button class="ib" data-pro title="${esc(A('صورة احترافية', 'Profi-Foto'))}">📸</button>`}
+          <button class="ib" data-rm title="${esc(A('شيل', 'Entfernen'))}">✕</button></div></div>
+      ${it.ask ? `<div class="qa-ask"><b>${esc(A('هل هاد هو المنتج؟', 'Ist das das Produkt?'))}</b> <span>${esc(it.name_de)}</span>${it.sources && it.sources.length ? `<small>${esc(A('المصدر', 'Quelle'))}: ${esc(it.sources.join(', '))}</small>` : ''}
+        <div class="acts" style="margin-top:6px"><button class="btn s" data-yes style="flex:1">${esc(A('✓ نعم', '✓ Ja'))}</button><button class="btn s o" data-no style="flex:1">${esc(A('✗ لا', '✗ Nein'))}</button></div></div>` : ''}
+      ${p ? `<div class="qa-name"><b>${esc(L(p, 'name'))}</b> <small>${esc(L(App.shopById(p.shop_id), 'name'))} • ${App.priceLabel(p)}${p.track_stock ? ' • ' + esc(A('المخزون', 'Bestand')) + ' ' + fq(p.stock, p.unit) : ''}</small></div>
+        <div class="row"><label class="f"><span>${esc(A('السعر €', 'Preis €'))}</span><input type="number" step="0.01" min="0" inputmode="decimal" data-f="price" value="${esc(it.price)}"></label>
+          <label class="f"><span>${esc(A('زيد عالمخزون', 'Bestand +'))}</span><input type="number" step="1" min="0" inputmode="numeric" data-f="qty" value="${esc(it.qty)}" placeholder="0"></label></div>`
+      : `<div class="row"><label class="f"><span>Name Deutsch *</span><input type="text" data-f="name_de" dir="auto" value="${esc(it.name_de)}" maxlength="120"></label>
+          <label class="f"><span>الاسم بالعربي</span><input type="text" data-f="name_ar" dir="rtl" value="${esc(it.name_ar)}" maxlength="120" placeholder="${esc(A('إذا تركتو فاضي بينحط الألماني', 'leer = wie Deutsch'))}"></label></div>
+        <div class="row3"><label class="f"><span>${esc(A('السعر €', 'Preis €'))} *</span><input type="number" step="0.01" min="0" inputmode="decimal" data-f="price" value="${esc(it.price)}"></label>
+          ${D.track ? `<label class="f"><span>${esc(A('كم قطعة', 'Menge'))}</span><input type="number" step="1" min="0" inputmode="numeric" data-f="qty" value="${esc(it.qty)}" placeholder="0"></label>` : ''}
+          <label class="f"><span>${esc(A('الضريبة', 'MwSt'))}</span><select data-f="vat">${[7, 19, 0].map(v => `<option ${+it.vat === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label></div>
+        ${it.vatHint ? `<p class="note" style="margin:0">${esc(A('ⓘ مشروب: الضريبة 19% عادةً (إلا الحليب).', 'ⓘ Getränk: meist 19 % MwSt (außer Milch).'))}</p>` : ''}`}
+      ${it.err ? `<p class="note" style="color:var(--bad);margin:4px 0 0">${esc(it.err)}</p>` : ''}
+      <div class="acts" style="margin-top:8px"><button class="btn s o" data-one>${ic('check', 's')} ${esc(A('إضافة هاد بس', 'Nur dieses hinzufügen'))}</button></div></div>`;
+  };
+  const bindItem = (el, it) => {
+    $$('[data-f]', el).forEach(i => {
+      const ev = i.tagName === 'SELECT' ? 'onchange' : 'oninput';
+      i[ev] = () => { it[i.dataset.f] = i.tagName === 'SELECT' ? +i.value : i.value; if (it.err) { it.err = ''; el.classList.remove('bad'); } };
+      i.onkeydown = e => {
+        if (e.key !== 'Enter') return; e.preventDefault();
+        const fs = $$('input[data-f]', el); const ix = fs.indexOf(i);
+        if (ix >= 0 && ix < fs.length - 1) fs[ix + 1].focus(); else if (!camOn) $('#qIn').focus(); else i.blur();
+      };
+    });
+    const ph = $('[data-ph]', el); if (ph) ph.onchange = e => { const f = e.target.files[0]; if (f) { it.own = true; it.pro = false; setImg(it, f, false); } };
+    const pr = $('[data-pro]', el); if (pr) pr.onclick = () => findPro(it, true);
+    $('[data-rm]', el).onclick = () => { items = items.filter(x => x !== it); el.remove(); bar(); };
+    const y = $('[data-yes]', el); if (y) y.onclick = () => { it.ask = false; it.ok = true; paintItem(it); if (D.pro && !it.pro) findPro(it); focusPrice(it); };
+    const n = $('[data-no]', el); if (n) n.onclick = () => { Object.assign(it, { ask: false, found: false, src: '', name_de: '', name_ar: '', img: null, imgUrl: '', vat: D.vat, vatHint: false, pro: false }); paintItem(it); const f = $(`[data-k="${it.key}"] [data-f="name_de"]`); if (f) f.focus(); };
+    $('[data-one]', el).onclick = () => review([it]);
+  };
+  const paintItem = it => {
+    const old = $(`[data-k="${it.key}"]`); if (!old) return;
+    const act = document.activeElement; const af = act && old.contains(act) && act.dataset ? act.dataset.f : null; const pos = af && act.selectionStart;
+    const t = document.createElement('div'); t.innerHTML = itemHtml(it); const el = t.firstElementChild;
+    old.replaceWith(el); bindItem(el, it);
+    if (af) { const n = $(`[data-f="${af}"]`, el); if (n) { n.focus(); try { if (pos != null) n.setSelectionRange(pos, pos); } catch (_) {} } }
+  };
+  const paintAll = () => {
+    const box = $('#qList'); if (!box) return;
+    box.innerHTML = items.map(itemHtml).join('');
+    items.forEach(it => { const el = $(`[data-k="${it.key}"]`, box); if (el) bindItem(el, it); }); bar();
+  };
+  const paintDone = () => {
+    if (!$('#qL')) return; $('#qDone').hidden = !added.length; $('#qN').textContent = added.length;
+    $('#qL').innerHTML = added.slice(0, 60).map(p => `<div class="li" data-qe="${p.id}" style="cursor:pointer"><div class="thumb" style="${bgImg(p.image_url)}"></div><div class="t"><b>${esc(L(p, 'name'))}</b><small>${App.priceLabel(p)}${p.barcode ? ' • ' + esc(p.barcode) : ''}</small></div></div>`).join('');
+    $$('[data-qe]').forEach(el => el.onclick = () => { const p = prodBy(el.dataset.qe); if (p) editProduct(p, () => { added = added.map(x => x.id === p.id ? prodBy(p.id) || x : x); paintDone(); }); });
+  };
+  const focusPrice = it => { if (camOn) return; const f = $(`[data-k="${it.key}"] [data-f="price"]`); if (f) { f.focus(); f.select && f.select(); } };
+  const showItem = it => {
+    const el = $(`[data-k="${it.key}"]`); if (!el) return;
+    el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1200);
+    // unter die Kamera/Scan-Leiste scrollen, damit das neue Produkt sichtbar ist
+    const sc = $('#qScan'); const off = (sc && camOn ? sc.getBoundingClientRect().height : 0) + 70;
+    const y = el.getBoundingClientRect().top + window.scrollY - off;
+    window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+  };
+  /* ----- Fotos ----- */
+  const setImg = async (it, blob, pro) => {
+    if (!blob) return; if (it.pro && !pro && !it.own) return;
+    const my = (it.imgTok = (it.imgTok || 0) + 1);
+    const opt = { cut: D.cut && !pro, onCut: () => { it.cutBusy = true; paintItem(it); } };
+    const p = proFrame(blob, opt); it.imgP = p;
+    const f = await p; if (it.imgTok !== my) return;
+    it.cutBusy = false; it.img = f; it.imgUrl = URL.createObjectURL(f); it.pro = !!pro; it.cutDone = !!opt.cutDone;
+    if (opt.cutFail && D.cut) toast(A('ما قدرت شيل الخلفية بهالجهاز، الصورة انحطت مثل ما هي', 'Hintergrund konnte hier nicht entfernt werden'), 1);
+    paintItem(it);
+  };
+  const findPro = async (it, manual) => {
+    const name = it.name_de || it.name_ar; if (!name || it.proBusy) { if (manual && !name) toast(A('اكتب الاسم أول', 'Erst Namen eingeben'), 1); return; }
+    it.proBusy = true; paintItem(it);
+    try {
+      const r = await eanCall({ mode: 'proimg', code: it.code || '', name });
+      if (r && r.found && r.image && (manual || !it.own)) { const b = dataUrlBlob(r.image); if (b && (r.pro || !it.img || manual)) { it.own = false; it.proBusy = false; await setImg(it, b, !!r.pro); } }
+      else if (manual) toast(r && r.error === 'quota' ? A('حد البحث بالإنترنت خلص لليوم', 'Internet-Limit für heute erreicht') : A('ما لقيت صورة احترافية، صوّرها إنت', 'Kein Profi-Foto gefunden, bitte selbst fotografieren'), 1);
+    } catch (_) { if (manual) toast(A('ما زبط، جرب كمان مرة', 'Hat nicht geklappt'), 1); }
+    finally { it.proBusy = false; paintItem(it); }
+  };
+  /* ----- Scan ----- */
   const scanned = async code => {
-    if (busy) return;
-    if (cur && cur.dirty()) { const ok = await save(); if (!ok) { if (cur && code) { cur.next = code; toast(A('كمّل هالمنتج أول. بعد الحفظ بيفتح المنتج اللي مسحتو.', 'Erst dieses Produkt fertig machen. Danach öffnet sich das gescannte.'), 1); } return; } }
     beepOk();
     const sid = ST.shopSel;
+    if (code) {
+      const dup = items.find(x => x.code === code);
+      if (dup) { dup.qty = String((num(dup.qty) || 0) + 1); paintItem(dup); showItem(dup); toast(A('نفس المنتج: الكمية +1', 'Gleiches Produkt: Menge +1')); return; }
+    }
     const ex = code && (S.products.find(x => x.barcode === code && x.shop_id === sid) || S.products.find(x => x.barcode === code && myShops().some(s => s.id === x.shop_id)));
-    if (ex) { cur = { ex, dirty: () => false }; return form(); }
-    cur = { code, name_de: '', name_ar: '', price: '', vat: D.vat, pfand: D.pfand, stock: D.stock, allergens: [], img: null, imgUrl: '', loading: !!(code && D.look && /^\d{8,14}$/.test(code)), dirty: () => !!(cur && !cur.ex && (cur.name_de || cur.name_ar || cur.price)) };
-    form();
-    if (cur.loading) {
-      const mine = cur; const r = await eanLookup(code); if (cur !== mine) return;
-      mine.loading = false;
-      const pr = r && r.found && r.product;
-      if (pr) {
-        if (!mine.name_de) mine.name_de = String(pr.name_de || '').slice(0, 120); if (!mine.name_ar && pr.name_ar) mine.name_ar = String(pr.name_ar).trim().slice(0, 120);
-        mine.allergens = pr.allergens || [];
-        if (pr.bev) { mine.vat = 19; mine.vatHint = true; }
-        mine.found = true; mine.src = r.source; mine.ask = !!r.confirm; mine.gp = pr; mine.sources = pr.sources || [];
-        const setImg = (b, pro) => { if (b && cur === mine && !mine.own && !(mine.pro && !pro)) proFrame(b).then(f => { if (cur !== mine || mine.own) return; mine.img = f; mine.imgUrl = URL.createObjectURL(f); if (pro) mine.pro = true; paintImg(mine); }); };
-        if (pr.image) setImg(dataUrlBlob(pr.image), !!pr.pro); else if (pr.image_url) offImage(pr.image_url).then(b => setImg(b, false));
-        if (D.pro && !pr.pro && !pr.pro_tried) findPro(mine);
-      } else { mine.found = false; if (r && r.error === 'quota') mine.quota = true; }
-      form(true);
-    }
+    const it = { key: ++seq, code, ex: ex || null, name_de: '', name_ar: '', price: ex ? ex.price : '', qty: ex ? '' : '', vat: D.vat, pfand: D.pfand, allergens: [], img: null, imgUrl: '', loading: !ex && !!(code && D.look && /^\d{8,14}$/.test(code)) };
+    items.unshift(it);
+    const box = $('#qList'); const t = document.createElement('div'); t.innerHTML = itemHtml(it); const el = t.firstElementChild; box.prepend(el); bindItem(el, it); bar();
+    showItem(it);
+    if (ex) { focusPrice(it); return; }
+    if (!it.loading) { const f = $('[data-f="name_de"]', el); if (f && !camOn) f.focus(); return; }
+    const r = await eanLookup(code);
+    it.loading = false;
+    const pr = r && r.found && r.product;
+    if (pr) {
+      if (!it.name_de) it.name_de = String(pr.name_de || '').slice(0, 120); if (!it.name_ar && pr.name_ar) it.name_ar = String(pr.name_ar).trim().slice(0, 120);
+      it.allergens = pr.allergens || [];
+      if (pr.bev) { it.vat = 19; it.vatHint = true; }
+      Object.assign(it, { found: true, src: r.source, ask: !!r.confirm, gp: pr, sources: pr.sources || [] });
+      paintItem(it);
+      if (pr.image) setImg(it, dataUrlBlob(pr.image), !!pr.pro); else if (pr.image_url) offImage(pr.image_url).then(b => setImg(it, b, false));
+      if (D.pro && !pr.pro && !pr.pro_tried && !it.ask) findPro(it);
+      if (!it.ask && document.activeElement === $('#qIn')) { /* Hand-Scanner: bereit für den nächsten */ }
+    } else { it.found = false; if (r && r.error === 'quota') it.quota = true; paintItem(it); }
   };
-  const paintImg = c => { ['#qImg', '#qImg2'].forEach(id => { const t = $(id); if (t && c.imgUrl) t.style.backgroundImage = `url('${c.imgUrl}')`; }); const h = $('#qProSt'); if (h) h.innerHTML = proSt(c); };
-  const proSt = c => c.proBusy ? esc(A('📸 عم دوّر على صورة احترافية…', '📸 Suche Profi-Foto…')) : c.pro ? esc(A('📸 صورة احترافية ✓', '📸 Profi-Foto ✓')) : '';
-  const findPro = async (c, manual) => {
-    const name = c.name_de || c.name_ar; if (!name || c.proBusy) return;
-    c.proBusy = true; paintImg(c);
+  /* ----- Bestätigen ----- */
+  const check = it => {
+    if (it.ask) return A('جاوب أول: هل هاد هو المنتج؟', 'Erst bestätigen: Ist das das Produkt?');
+    if (it.ex) return isNaN(num(it.price)) ? A('السعر ناقص', 'Preis fehlt') : '';
+    if (!String(it.name_de || it.name_ar || '').trim()) return A('الاسم ناقص', 'Name fehlt');
+    if (String(it.price).trim() === '' || isNaN(num(it.price)) || num(it.price) < 0) return A('السعر ناقص', 'Preis fehlt');
+    return '';
+  };
+  const review = list => {
+    list = list.filter(Boolean); if (!list.length) return;
+    const rows = list.map(it => ({ it, e: check(it), on: !check(it) }));
+    const root = modal(`<button class="ib x" data-close>✕</button><h3>${esc(A('تأكيد الإضافة', 'Hinzufügen bestätigen'))}</h3>
+      <p class="note" style="margin:0 0 8px">${esc(A('شيّك على المنتجات. شيل علامة ✓ عن أي منتج ما بدك تضيفو هلق.', 'Bitte prüfen. Haken entfernen, wenn ein Produkt jetzt nicht angelegt werden soll.'))}</p>
+      <div class="qa-rv">${rows.map((r, i) => { const it = r.it; const p = it.ex; const img = it.imgUrl ? `background-image:url('${it.imgUrl}')` : (p ? bgImg(p.image_url) : '');
+        return `<label class="qa-rr${r.e ? ' bad' : ''}"><input type="checkbox" data-i="${i}" ${r.on ? 'checked' : ''} ${r.e ? 'disabled' : ''}><div class="thumb" style="${img}"></div>
+          <div class="t"><b>${esc(p ? L(p, 'name') : (it.name_de || it.name_ar || '—'))}</b><small>${r.e ? `<span style="color:var(--bad)">${esc(r.e)}</span>` : `${esc(A('السعر', 'Preis'))} ${esc(money(num(it.price)))}${num(it.qty) ? ' • ' + esc(A(p ? 'زيادة' : 'الكمية', p ? 'Bestand +' : 'Menge')) + ' ' + num(it.qty) : ''}${p ? ' • ' + esc(A('موجود من قبل', 'vorhanden')) : ''}`}</small></div></label>`; }).join('')}</div>
+      <div class="acts" style="margin-top:12px"><button class="btn" id="rvOk" style="flex:1"></button><button class="btn o" data-close>${esc(A('رجوع', 'Zurück'))}</button></div>`);
+    const upd = () => { const n = $$('[data-i]:checked', root).length; $('#rvOk', root).disabled = !n; $('#rvOk', root).innerHTML = `${ic('check', 's')} ${esc(A(`تأكيد وإضافة (${n})`, `Bestätigen und anlegen (${n})`))}`; };
+    $$('[data-i]', root).forEach(c => c.onchange = upd); upd();
+    $('#rvOk', root).onclick = async () => {
+      const sel = $$('[data-i]:checked', root).map(c => rows[+c.dataset.i].it);
+      const b = $('#rvOk', root); b.disabled = true; let ok = 0, i = 0;
+      for (const it of sel) { i++; b.textContent = A(`عم ضيف ${i} من ${sel.length}…`, `Lege an ${i} von ${sel.length}…`); if (await saveItem(it)) ok++; }
+      closeModal(); paintAll(); paintDone(); beepOk();
+      toast(ok === sel.length ? A(`✓ انضافوا ${ok} منتج`, `✓ ${ok} Produkte angelegt`) : A(`انضاف ${ok} من ${sel.length}. شوف الأحمر.`, `${ok} von ${sel.length} angelegt. Rot markierte prüfen.`), ok !== sel.length);
+      if (!items.length && !camOn) $('#qIn') && $('#qIn').focus();
+    };
+  };
+  const saveItem = async it => {
+    const sid = ST.shopSel;
     try {
-      const r = await eanCall({ mode: 'proimg', code: c.code || '', name });
-      if (r && r.found && r.image && !c.own && cur === c) { const b = dataUrlBlob(r.image); if (b && (r.pro || !c.img)) { const f = await proFrame(b); c.img = f; c.imgUrl = URL.createObjectURL(f); c.pro = !!r.pro; } }
-      else if (manual) toast(r && r.error === 'quota' ? A('بحث جوجل خلص لليوم', 'Google-Limit für heute erreicht') : A('ما لقيت صورة احترافية، صوّرها إنت', 'Kein Profi-Foto gefunden, bitte selbst fotografieren'), 1);
-    } catch (_) { if (manual) toast(A('ما زبط، جرب كمان مرة', 'Hat nicht geklappt'), 1); }
-    finally { c.proBusy = false; if (cur === c) paintImg(c); }
-  };
-  const form = keepFocus => {
-    const box = $('#qF'); if (!box) return;
-    if (!cur) { box.innerHTML = ''; return; }
-    if (cur.ex) {
-      const p = cur.ex;
-      box.innerHTML = `<div class="card qa-f"><div class="pill">${esc(A('موجود من قبل', 'Schon vorhanden'))}</div><div class="li"><div class="thumb" style="${bgImg(p.image_url)}"></div><div class="t"><b>${esc(L(p, 'name'))}</b><small>${esc(L(App.shopById(p.shop_id), 'name'))} • ${esc(p.barcode)}</small></div></div>
-        <div class="row"><label class="f"><span>${esc(A('السعر €', 'Preis €'))}</span><input type="number" step="0.01" min="0" inputmode="decimal" id="qxP" value="${esc(p.price)}"></label>
-        ${p.track_stock ? `<label class="f"><span>${esc(A('زيد عالمخزون', 'Bestand +'))}</span><input type="number" step="1" id="qxS" placeholder="0"></label>` : ''}</div>
-        <div class="acts"><button class="btn" id="qxSave" style="flex:1">${esc(A('حفظ (Enter)', 'Speichern (Enter)'))}</button><button class="btn o" id="qxEd">${esc(A('تعديل كامل', 'Alles bearbeiten'))}</button><button class="btn o" id="qxSk">${esc(A('تخطي', 'Weiter'))}</button></div></div>`;
-      const go = async () => {
-        const np = parseFloat(String($('#qxP').value).replace(',', '.')); const add = $('#qxS') ? parseFloat(String($('#qxS').value).replace(',', '.')) || 0 : 0;
-        if (!isNaN(np) && np !== +p.price) { const { error } = await sb.from('products').update({ price: np }).eq('id', p.id); if (error) return err(error); p.price = np; }
-        if (add) { const { data, error } = await sb.rpc('stock_adjust', { p_product: p.id, p_delta: add, p_reason: 'receive', p_ref: 'Schnell erfassen' }); if (error) return err(error); p.stock = data; }
-        toast('✓ ' + p.name_de); cur = null; form(); $('#qIn').focus();
-      };
-      $('#qxSave').onclick = go; $('#qxSk').onclick = () => { cur = null; form(); $('#qIn').focus(); };
-      $('#qxEd').onclick = () => { const q = p; cur = null; editProduct(q, () => draw()); };
-      $$('#qF input').forEach(i => i.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); go(); } else if (e.key === 'Escape') { cur = null; form(); $('#qIn').focus(); } });
-      const pi = $('#qxP'); pi.focus(); pi.select(); return;
-    }
-    const c = cur;
-    box.innerHTML = `<div class="card qa-f">
-      <div class="li" style="align-items:center"><div class="thumb" id="qImg" style="width:64px;height:64px;${c.imgUrl ? `background-image:url('${c.imgUrl}')` : ''}"></div>
-        <div class="t"><b>${c.code ? esc(c.code) : esc(A('منتج بلا باركود', 'Ohne Barcode'))}</b><small>${c.loading ? esc(A('عم دوّر على المنتج… (إذا لزم بجوجل، ممكن ياخد لـ 15 ثانية)', 'Suche Produktdaten… (bei Google bis 15 Sek.)')) : c.found ? esc(c.src === 'google' ? A('لقيتو بجوجل', 'Bei Google gefunden') : c.src === 'file' ? A('من ملف المنتجات ✓', 'Aus der Produktdatei ✓') : A('لقيت الاسم ✓ اتأكد منو', 'Gefunden ✓ bitte prüfen')) : c.found === false ? esc(c.quota ? A('ما لقيتو (بحث جوجل خلص لليوم)، اكتب الاسم', 'Nicht gefunden (Google-Limit für heute), Name eingeben') : A('ما لقيتو، اكتب الاسم أو صوّرو', 'Nicht gefunden, Name eingeben oder Foto machen')) : ''}</small></div>
-        <div class="acts" style="flex-direction:column;gap:6px"><label class="btn s o" style="cursor:pointer">${ic('camera', 's')}<input type="file" accept="image/*" capture="environment" id="qPh" hidden></label>
-        ${c.loading || c.ask ? '' : `<button class="btn s o" id="qProB" title="${esc(A('صورة احترافية', 'Profi-Foto'))}">📸</button>`}</div></div>
-      <div class="note" id="qProSt" style="margin:-4px 0 6px">${proSt(c)}</div>
-      ${c.ask ? `<div class="card" style="background:#FFF7E6;border:2px solid #E8B04B;margin:8px 0"><b style="font-size:17px">${esc(A('هل هاد هو المنتج؟', 'Ist das das Produkt?'))}</b>
-        <div class="li" style="align-items:center;margin-top:6px"><div class="thumb" id="qImg2" style="width:90px;height:90px;${c.imgUrl ? `background-image:url('${c.imgUrl}')` : ''}"></div><div class="t"><b>${esc(c.name_de)}</b>${c.name_ar ? `<small dir="rtl">${esc(c.name_ar)}</small>` : ''}${c.sources.length ? `<small>${esc(A('المصدر', 'Quelle'))}: ${esc(c.sources.join(', '))}</small>` : ''}</div></div>
-        <div class="acts" style="margin-top:8px"><button class="btn" id="qYes" style="flex:1">${esc(A('✓ نعم، هاد هو', '✓ Ja, stimmt'))}</button><button class="btn o" id="qNoP" style="flex:1">${esc(A('✗ لا', '✗ Nein'))}</button></div></div>` : ''}
-      <div class="row"><label class="f"><span>Name Deutsch *</span><input type="text" id="qNd" value="${esc(c.name_de)}" maxlength="120"></label>
-        <label class="f"><span>الاسم بالعربي</span><input type="text" id="qNa" dir="rtl" value="${esc(c.name_ar)}" maxlength="120" placeholder="${esc(A('إذا تركتو فاضي بينحط الألماني', 'leer = wie Deutsch'))}"></label></div>
-      <div class="row3"><label class="f"><span>${esc(A('السعر €', 'Preis €'))} *</span><input type="number" step="0.01" min="0" inputmode="decimal" id="qP" value="${esc(c.price)}"></label>
-        <label class="f"><span>${esc(A('الضريبة', 'MwSt'))}${c.vatHint ? ' ⓘ' : ''}</span><select id="qVv">${[7, 19, 0].map(v => `<option ${+c.vat === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
-        <label class="f"><span>Pfand €</span><input type="number" step="0.01" min="0" id="qPf2" value="${esc(c.pfand)}"></label></div>
-      ${D.track ? `<label class="f"><span>${esc(A('الكمية بالمخزون', 'Bestand'))}</span><input type="number" step="1" min="0" id="qS" value="${esc(c.stock)}"></label>` : ''}
-      ${c.vatHint ? `<p class="note" style="margin:0">${esc(A('ⓘ مشروب: الضريبة 19% عادةً (إلا الحليب).', 'ⓘ Getränk: meist 19 % MwSt (außer Milch).'))}</p>` : ''}
-      ${c.allergens.length ? `<p class="note" style="margin:4px 0 0">${esc(A('مسببات الحساسية', 'Allergene'))}: ${esc(c.allergens.map(a => ALLERGENS[a][S.lang === 'ar' ? 0 : 1]).join(', '))}</p>` : ''}
-      <div class="acts" style="margin-top:10px"><button class="btn" id="qSave" style="flex:1">${esc(A('حفظ (Enter)', 'Speichern (Enter)'))}</button><button class="btn o" id="qSk">${esc(A('تخطي (Esc)', 'Verwerfen (Esc)'))}</button></div></div>`;
-    const bind = (id, k) => { const el = $(id); if (el) el.oninput = () => { c[k] = el.value; }; };
-    bind('#qNd', 'name_de'); bind('#qNa', 'name_ar'); bind('#qP', 'price'); bind('#qS', 'stock'); bind('#qPf2', 'pfand');
-    $('#qVv').onchange = e => { c.vat = +e.target.value; };
-    if ($('#qPh')) $('#qPh').onchange = async e => { const f = e.target.files[0]; if (!f) return; c.own = true; c.pro = false; const b = await proFrame(f); c.img = b; c.imgUrl = URL.createObjectURL(b); paintImg(c); };
-    if ($('#qProB')) $('#qProB').onclick = () => { c.own = false; findPro(c, true); };
-    $('#qSave').onclick = () => save();
-    if ($('#qYes')) $('#qYes').onclick = () => { c.ask = false; c.ok = true; form(); if (D.pro && !c.pro) findPro(c); };
-    if ($('#qNoP')) $('#qNoP').onclick = () => { c.ask = false; c.found = false; c.src = ''; c.name_de = ''; c.name_ar = ''; c.img = null; c.imgUrl = ''; c.vat = D.vat; c.vatHint = false; form(); };
-    $('#qSk').onclick = () => { cur = null; form(); $('#qIn').focus(); };
-    $$('#qF input, #qF select').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } else if (e.key === 'Escape') { cur = null; form(); $('#qIn').focus(); } }));
-    if (c.ask) { $('#qYes').focus(); return; }
-    if (!keepFocus || document.activeElement === $('#qIn') || !document.activeElement || document.activeElement === document.body) { const f = c.loading ? $('#qNd') : c.name_de ? $('#qP') : $('#qNd'); f.focus(); }
-  };
-  const save = async () => {
-    const c = cur; if (!c || c.ex || busy) return !c;
-    const num = v => parseFloat(String(v).replace(',', '.'));
-    const name_de = String(c.name_de || '').trim(), name_ar = String(c.name_ar || '').trim(), price = num(c.price);
-    if (!name_de && !name_ar) { toast(A('اكتب اسم المنتج', 'Name fehlt'), 1); $('#qNd') && $('#qNd').focus(); return false; }
-    if (isNaN(price) || price < 0 || String(c.price).trim() === '') { toast(A('اكتب السعر', 'Preis fehlt'), 1); $('#qP') && $('#qP').focus(); return false; }
-    if (c.ask) { toast(A('جاوب أول: هل هاد هو المنتج؟', 'Erst bestätigen: Ist das das Produkt?'), 1); return false; }
-    const sid = ST.shopSel; busy = true; $('#qSave') && ($('#qSave').disabled = true);
-    try {
+      if (it.imgP) await it.imgP.catch(() => {});
+      if (it.ex) {
+        const p = it.ex; const np = num(it.price); const add = num(it.qty) || 0;
+        if (!isNaN(np) && np !== +p.price) { const { error } = await sb.from('products').update({ price: np }).eq('id', p.id); if (error) throw error; p.price = np; }
+        if (add) { const { data, error } = await sb.rpc('stock_adjust', { p_product: p.id, p_delta: add, p_reason: 'receive', p_ref: 'Schnell erfassen' }); if (error) throw error; p.stock = data; p.track_stock = true; }
+        items = items.filter(x => x !== it); return true;
+      }
+      const name_de = String(it.name_de || '').trim(), name_ar = String(it.name_ar || '').trim();
       let image_url = null;
-      if (c.img) { try { image_url = await uploadImage(c.img, sid, 900); } catch (_) { image_url = null; } }
-      const unit = D.unit; const stock = D.track ? (num(c.stock) || 0) : 0;
-      const o = { shop_id: sid, name_de: name_de || name_ar, name_ar: name_ar || name_de, price, unit, step: unit === 'kg' ? 0.25 : 1, min_qty: unit === 'kg' ? 0.25 : 1, barcode: c.code || null, category_id: D.cat || null,
-        vat: [0, 7, 19].includes(+c.vat) ? +c.vat : 7, pfand: num(c.pfand) || 0, track_stock: D.track, stock, allergens: c.allergens || [], image_url, active: true };
+      if (it.img) { try { image_url = await uploadImage(it.img, sid, 1000); } catch (_) { image_url = null; } }
+      const unit = D.unit; const qty = num(it.qty) || 0; const track = D.track && qty > 0 ? true : D.track;
+      const o = { shop_id: sid, name_de: name_de || name_ar, name_ar: name_ar || name_de, price: num(it.price), unit, step: unit === 'kg' ? 0.25 : 1, min_qty: unit === 'kg' ? 0.25 : 1, barcode: it.code || null, category_id: D.cat || null,
+        vat: [0, 7, 19].includes(+it.vat) ? +it.vat : 7, pfand: num(it.pfand) || 0, track_stock: track, stock: track ? qty : 0, allergens: it.allergens || [], image_url, active: true };
       const { data, error } = await sb.from('products').insert(o).select().single();
-      if (error) { err(error); return false; }
-      if (stock) { const u = (await sb.auth.getUser()).data.user; await sb.from('stock_moves').insert({ product_id: data.id, shop_id: sid, delta: stock, reason: 'start', user_id: u && u.id }).then(() => {}, () => {}); }
-      const nx = c.next;
-      if (image_url && c.code && /^\d{8,14}$/.test(c.code) && (c.pro || c.own)) eanCall({ mode: 'setimg', code: c.code, url: image_url, name_de: data.name_de, name_ar: data.name_ar }).catch(() => {});
-      if (c.ok && c.src === 'google' && c.code) eanCall({ mode: 'confirm', code: c.code, name_de: data.name_de, name_ar: data.name_ar, brand: c.gp && c.gp.brand, quantity: c.gp && c.gp.quantity, bev: +data.vat === 19, image_url: image_url || '' }).catch(() => {});
-      S.products.push(data); added.unshift(data); cur = null; beepOk(); toast('✓ ' + data.name_de);
-      form(); paintList(); $('#qIn') && $('#qIn').focus(); if (nx) setTimeout(() => scanned(nx), 300); return true;
-    } finally { busy = false; if ($('#qSave')) $('#qSave').disabled = false; }
+      if (error) throw error;
+      if (track && qty) { const u = (await sb.auth.getUser()).data.user; await sb.from('stock_moves').insert({ product_id: data.id, shop_id: sid, delta: qty, reason: 'start', user_id: u && u.id }).then(() => {}, () => {}); }
+      if (image_url && it.code && /^\d{8,14}$/.test(it.code) && (it.pro || it.own || it.cutDone)) eanCall({ mode: 'setimg', code: it.code, url: image_url, name_de: data.name_de, name_ar: data.name_ar }).catch(() => {});
+      if (it.ok && it.src === 'google' && it.code) eanCall({ mode: 'confirm', code: it.code, name_de: data.name_de, name_ar: data.name_ar, brand: it.gp && it.gp.brand, quantity: it.gp && it.gp.quantity, bev: +data.vat === 19, image_url: image_url || '' }).catch(() => {});
+      S.products.push(data); added.unshift(data); items = items.filter(x => x !== it); return true;
+    } catch (e) { it.err = (e && e.message) || A('صار خطأ', 'Fehler'); return false; }
   };
-  // Handscanner tippen sehr schnell und drücken Enter. Wenn so ein Scan in einem Formularfeld landet
-  // (z. B. im Preisfeld), nehmen wir die Ziffern wieder raus und behandeln es als neuen Scan.
+  // Handscanner tippen sehr schnell und drücken Enter. Landet so ein Scan in einem Feld der Liste,
+  // nehmen wir die Ziffern wieder raus und behandeln es als neuen Scan.
   const buf = { s: '', t0: 0, last: 0, el: null, before: '' };
   const onKey = e => {
     if (!document.body.contains(main) || !$('#qIn')) { document.removeEventListener('keydown', onKey, true); return; }
-    const el = e.target; if (!el || el.id === 'qIn' || !el.closest || !el.closest('#qF')) return;
+    const el = e.target; if (!el || el.id === 'qIn' || !el.closest || !el.closest('#qList')) return;
     const now = performance.now();
     if (e.key && e.key.length === 1) { if (now - buf.last > 60 || buf.el !== el) { buf.s = ''; buf.t0 = now; buf.el = el; buf.before = el.value; } buf.s += e.key; buf.last = now; return; }
     if (e.key === 'Enter' && buf.el === el && buf.s.length >= 6 && now - buf.last < 80 && (buf.last - buf.t0) / (buf.s.length - 1) < 35) {
@@ -990,7 +1110,8 @@ function codeFilter(onCode) {
     const c = String(raw || '').trim(); if (!c) return; const now = Date.now();
     if (/^\d+$/.test(c)) {
       if (!eanOk(c)) return;
-      if (c !== cand || now - candT > 1500) { cand = c; candT = now; return; }
+      // EAN-13 mit richtiger Prüfziffer sofort nehmen; kürzere Codes (EAN-8/UPC) zur Sicherheit 2× lesen
+      if (!(c.length === 13 || c.length === 14) && (c !== cand || now - candT > 1500)) { cand = c; candT = now; return; }
     }
     if (c === last && now - lastT < 2500) return;
     last = c; lastT = now; cand = '';
@@ -1084,7 +1205,7 @@ function secScan(main) {
     }
     const p = S.products.find(x => x.barcode === code && x.shop_id === ST.shopSel) || S.products.find(x => x.barcode === code && myShops().some(s => s.id === x.shop_id));
     if (!p) { res.innerHTML = `<div class="card"><b>${esc(code)}</b><p class="note">${esc(A('منتج مش موجود', 'Produkt nicht vorhanden'))}</p><button class="btn" id="nwp">${esc(A('أضفه كمنتج جديد', 'Als neues Produkt anlegen'))}</button></div>`;
-      $('#nwp').onclick = () => { stopCamera(); quickAdd(main, () => secScan(main), code); }; return; }
+      $('#nwp').onclick = () => { stopCamera(); scanAdd(main, () => secScan(main), code); }; return; }
     if (mode === 'in') { const { data, error } = await sb.rpc('stock_adjust', { p_product: p.id, p_delta: 1, p_reason: 'receive', p_ref: 'Scanner' }); if (error) return err(error); p.stock = data; p.track_stock = true;
       res.innerHTML = `<div class="card"><b>${esc(L(p, 'name'))}</b> +1 → <b style="color:var(--ok)">${fq(data, p.unit)}</b><div class="acts" style="margin-top:8px"><button class="btn s o" id="rcvN">± ${esc(A('كمية تانية', 'Andere Menge'))}</button></div></div>`;
       $('#rcvN').onclick = () => receiveDlg(p); return; }
@@ -1557,9 +1678,11 @@ function aiExamples() {
   const base = { products: [A('شو المنتجات اللي ما إلها صورة؟', 'Welche Produkte haben kein Foto?'), A('زيد أسعار الملحمة 5%', 'Metzgerei-Preise um 5 % erhöhen')], settings: [A('وين بغيّر رسوم التوصيل؟', 'Wo ändere ich die Liefergebühr?'), A('كيف بوقّف الطلبات مؤقتاً؟', 'Wie pausiere ich Bestellungen?')], stock: [A('شو المنتجات اللي قربت تخلص؟', 'Was ist fast ausverkauft?')] }[sec] || [];
   return base.concat([A('ودّيني على الطلبات الجديدة', 'Zeig mir die neuen Bestellungen'), A('غيّر سعر زيت الزيتون لـ 8.99', 'Olivenöl auf 8,99 setzen'), A('ضيف منتج: لبنة 500غ بالسوبرماركت بـ 2.49', 'Neu: Labneh 500 g im Supermarkt, 2,49')]).slice(0, 4);
 }
+// **fett** aus der KI-Antwort sauber anzeigen statt Sternchen
+function aiFmt(t) { return esc(String(t || '').replace(/^#+\s*/gm, '')).replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>').replace(/(^|\s)\*([^*\n]+)\*(?=\s|$)/g, '$1$2').replace(/^\s*[*-]\s+/gm, '• '); }
 function aiRender() {
   const root = AI.root; if (!root) return;
-  const msgs = AI.msgs.map(m => `<div class="ai-msg ${m.role === 'user' ? 'me' : 'bot'}${m.err ? ' err' : ''}">${m.role === 'user' ? '' : `<span class="ai-av">${SPARK}</span>`}<div class="ai-bub">${esc(m.text)}${m.nav ? `<button class="ai-go" data-nav="${AI.msgs.indexOf(m)}">${ic(S.lang === 'ar' ? 'back' : 'fwd', 's')} ${esc(A('روح', 'Öffnen'))}</button>` : ''}</div></div>`).join('');
+  const msgs = AI.msgs.map(m => `<div class="ai-msg ${m.role === 'user' ? 'me' : 'bot'}${m.err ? ' err' : ''}">${m.role === 'user' ? '' : `<span class="ai-av">${SPARK}</span>`}<div class="ai-bub">${aiFmt(m.text)}${m.nav ? `<button class="ai-go" data-nav="${AI.msgs.indexOf(m)}">${ic(S.lang === 'ar' ? 'back' : 'fwd', 's')} ${esc(A('روح', 'Öffnen'))}</button>` : ''}</div></div>`).join('');
   const hello = `<div class="ai-hello"><span class="ai-orb">${SPARK}</span><h3>${esc(A('أهلين! كيف فيني ساعدك؟', 'Hallo! Wie kann ich helfen?'))}</h3>
       <p>${esc(A('بغيّر أسعار، بضيف وبحذف منتجات، بدبّر المخزون، وبودّيك على أي صفحة. ما بيتغيّر شي قبل ما تأكّد.', 'Preise ändern, Produkte anlegen/löschen, Lager pflegen und dich zu jeder Seite bringen. Nichts ändert sich ohne deine Bestätigung.'))}</p></div>`;
   root.querySelector('.ai-body').innerHTML = (AI.msgs.length ? msgs : hello)
