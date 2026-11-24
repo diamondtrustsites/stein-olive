@@ -1387,7 +1387,8 @@ function aiErr(e) {
   if (e.code === 'quota') return A('خلص الحد المجاني لهلأ. جرّب بعد شوي أو بكرا.', 'Gratis-Kontingent für jetzt aufgebraucht. Bitte später oder morgen erneut versuchen.');
   if (e.code === 'forbidden') return A('المساعد للأدمن بس. سجّل دخول من جديد.', 'Nur für Admins. Bitte neu anmelden.');
   if (e.code === 'no_key') return A('مفتاح Gemini مش محطوط بـ Supabase.', 'Gemini-Schlüssel fehlt in Supabase.');
-  return A('صار خطأ، جرّب مرة تانية.', 'Fehler, bitte nochmal versuchen.') + (e.detail ? ` (${String(e.detail).slice(0, 120)})` : '');
+  if (e.detail) console.warn('admin-ai', e.detail);
+  return A('صار خطأ، جرّب مرة تانية.', 'Fehler, bitte nochmal versuchen.');
 }
 function secAi(main) {
   const ex = [A('غيّر سعر زيت الزيتون لـ 8.99', 'Setze den Preis von Olivenöl auf 8,99'), A('علّم كل الحلويات اللي فيها فستق إنها خلصانة', 'Markiere alle Süßigkeiten mit Pistazie als ausverkauft'), A('زيد أسعار الملحمة 5%', 'Erhöhe alle Preise der Metzgerei um 5 %'), A('ضيف منتج: لبنة 500غ بالسوبرماركت بسعر 2.49', 'Neues Produkt: Labneh 500 g im Supermarkt für 2,49')];
@@ -1411,10 +1412,10 @@ function secAi(main) {
       if (!App.allow('ai', 12, 60)) return;
       AI.msgs.push({ role: 'user', text: txt }); AI.prompt = txt; AI.plan = null; AI.preview = null; AI.lastLog = null; AI.busy = true; draw();
       try {
-        const r = await aiCall({ mode: 'chat', messages: AI.msgs });
+        const r = await aiCall({ mode: 'chat', messages: AI.msgs.filter(m => !m.err) });
         AI.msgs.push({ role: 'model', text: r.reply || (r.plan && r.plan.length ? A('راجع التغييرات تحت وأكّد.', 'Bitte Änderungen unten prüfen und bestätigen.') : '…') });
         AI.plan = r.plan && r.plan.length ? r.plan : null; AI.preview = r.preview || null;
-      } catch (e) { AI.msgs.push({ role: 'model', text: aiErr(e) }); }
+      } catch (e) { AI.msgs.pop(); AI.msgs.push({ role: 'model', text: aiErr(e), err: true, ask: txt }); }
       AI.busy = false; draw();
       const p = $('#aiPlan'); if (p) p.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
