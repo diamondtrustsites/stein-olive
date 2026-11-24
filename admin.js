@@ -102,6 +102,7 @@ async function logout() { stopLive(); stopGeo(); await sb.auth.signOut({ scope: 
 /* ---------- layout ---------- */
 const MENU = [
   ['orders', 'inbox', 'الطلبات', 'Bestellungen', ['admin', 'shop']],
+  ['ai', 'chat', 'المساعد الذكي', 'KI-Assistent', ['admin']],
   ['products', 'tag', 'المنتجات', 'Produkte', ['admin', 'shop']],
   ['stock', 'box', 'المخزون', 'Lager', ['admin', 'shop']],
   ['scan', 'scan', 'الماسح (Scanner)', 'Scanner', ['admin', 'shop']],
@@ -1352,6 +1353,98 @@ function secScreens(main) {
     ${myShops().map(s => `<div class="card"><b>${SI(s.type)} ${esc(L(s, 'name'))}</b><div class="acts" style="margin-top:8px"><a class="btn s" href="#/screen/${esc(s.id)}" target="_blank">${esc(A('فتح', 'Öffnen'))}</a><button class="btn s o" data-cp="${esc(base + '#/screen/' + s.id)}">${esc(A('نسخ الرابط', 'Link kopieren'))}</button></div><div class="note" style="word-break:break-all">${esc(base + '#/screen/' + s.id)}</div></div>`).join('')}`;
   $$('[data-cp]').forEach(b => b.onclick = () => navigator.clipboard.writeText(b.dataset.cp).then(() => toast('✓')));
 }
+/* ---------- KI-Assistent (nur Admin): schreiben → Vorschlag ansehen → bestätigen → rückgängig möglich ---------- */
+const AI = { msgs: [], plan: null, preview: null, prompt: '', busy: false, lastLog: null };
+async function aiCall(body) {
+  const { data } = await sb.auth.getSession();
+  const tok = data.session && data.session.access_token;
+  const r = await fetch(App.CFG.url + '/functions/v1/admin-ai', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: App.CFG.key, Authorization: 'Bearer ' + tok }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(j.error || 'error'); e.code = j.error; e.detail = j.detail; throw e; }
+  return j;
+}
+const AI_F = { price: ['السعر', 'Preis'], name_ar: ['الاسم عربي', 'Name AR'], name_de: ['الاسم ألماني', 'Name DE'], desc_ar: ['الوصف عربي', 'Beschreibung AR'], desc_de: ['الوصف ألماني', 'Beschreibung DE'], active: ['ظاهر/متوفر', 'Verfügbar'], featured: ['مميز', 'Hervorgehoben'], halal: ['حلال', 'Halal'], cooled: ['مبرد', 'Gekühlt'], track_stock: ['تتبع المخزون', 'Lager führen'], stock: ['المخزون', 'Bestand'], min_stock: ['حد أدنى للمخزون', 'Mindestbestand'], category_id: ['القسم', 'Kategorie'], unit: ['الوحدة', 'Einheit'], barcode: ['باركود', 'Barcode'], vat: ['الضريبة %', 'MwSt %'], pfand: ['Pfand', 'Pfand'] };
+function aiVal(k, v) {
+  if (v === null || v === undefined || v === '') return '—';
+  if (typeof v === 'boolean') return v ? A('نعم', 'Ja') : A('لا', 'Nein');
+  if (k === 'price' || k === 'pfand') return money(v);
+  if (k === 'unit') return v === 'kg' ? A('كيلو', 'kg') : A('قطعة', 'Stück');
+  if (k === 'category_id') return typeof v === 'object' ? L(v, 'name') : String(v);
+  return String(v);
+}
+function aiPreviewHtml(lines) {
+  const row = (cls, icn, title, body) => `<div class="li" style="align-items:flex-start"><span class="pill ${cls}">${ic(icn, 's')}</span><div class="t"><b>${title}</b>${body}</div></div>`;
+  return lines.map(l => {
+    const nm = esc(S.lang === 'ar' ? l.name_ar : l.name_de) + (l.shop ? ` <small class="note">• ${esc(L(l.shop, 'name'))}</small>` : '');
+    if (l.kind === 'update') return row('be', 'edit', nm, l.diff.map(d => `<small>${esc(A((AI_F[d.field] || [d.field])[0], (AI_F[d.field] || [d.field, d.field])[1]))}: <s>${esc(aiVal(d.field, d.from))}</s> ← <b>${esc(aiVal(d.field, d.to))}</b></small>`).join(''));
+    if (l.kind === 'create') return row('ok', 'plus', nm, `<small>${esc(A('منتج جديد', 'Neues Produkt'))} • ${esc(money(l.price))}${l.unit === 'kg' ? ' / kg' : ''}${l.stock ? ' • ' + esc(A('مخزون', 'Bestand')) + ' ' + esc(l.stock) : ''}</small>`);
+    if (l.kind === 'delete') return row('bad', 'trash', nm, `<small>${esc(A('رح ينحذف', 'Wird gelöscht'))}</small>`);
+    if (l.kind === 'category') return row('ok', 'list', nm, `<small>${esc(A('قسم جديد', 'Neue Kategorie'))}</small>`);
+    return '';
+  }).join('');
+}
+function aiErr(e) {
+  if (e.code === 'quota') return A('خلص الحد المجاني لهلأ. جرّب بعد شوي أو بكرا.', 'Gratis-Kontingent für jetzt aufgebraucht. Bitte später oder morgen erneut versuchen.');
+  if (e.code === 'forbidden') return A('المساعد للأدمن بس. سجّل دخول من جديد.', 'Nur für Admins. Bitte neu anmelden.');
+  if (e.code === 'no_key') return A('مفتاح Gemini مش محطوط بـ Supabase.', 'Gemini-Schlüssel fehlt in Supabase.');
+  return A('صار خطأ، جرّب مرة تانية.', 'Fehler, bitte nochmal versuchen.') + (e.detail ? ` (${String(e.detail).slice(0, 120)})` : '');
+}
+function secAi(main) {
+  const ex = [A('غيّر سعر زيت الزيتون لـ 8.99', 'Setze den Preis von Olivenöl auf 8,99'), A('علّم كل الحلويات اللي فيها فستق إنها خلصانة', 'Markiere alle Süßigkeiten mit Pistazie als ausverkauft'), A('زيد أسعار الملحمة 5%', 'Erhöhe alle Preise der Metzgerei um 5 %'), A('ضيف منتج: لبنة 500غ بالسوبرماركت بسعر 2.49', 'Neues Produkt: Labneh 500 g im Supermarkt für 2,49')];
+  const draw = () => {
+    main.innerHTML = `<div class="card" style="margin-top:0"><b>${ic('chat', 's')} ${esc(A('مساعد الإدارة الذكي', 'KI-Assistent'))}</b>
+        <p class="note" style="margin:6px 0 0">${esc(A('اكتبلو شو بدك: تغيير أسعار، إضافة أو حذف منتجات، المخزون، الأقسام. ما بيتغيّر شي قبل ما تكبس «تأكيد».', 'Schreib, was du willst: Preise, Produkte anlegen/löschen, Lager, Kategorien. Nichts wird geändert, bevor du „Bestätigen“ tippst.'))}</p></div>
+      <div id="aiLog">${AI.msgs.length ? AI.msgs.map(m => `<div class="card" style="margin:8px 0;${m.role === 'user' ? 'background:var(--olive-soft);margin-inline-start:15%' : 'margin-inline-end:15%'}"><div style="white-space:pre-wrap">${esc(m.text)}</div></div>`).join('')
+        : `<div class="chips" style="display:flex;flex-wrap:wrap;gap:6px">${ex.map(t => `<button class="btn s o" data-ex="${esc(t)}">${esc(t)}</button>`).join('')}</div>`}</div>
+      ${AI.busy ? `<div class="note" style="padding:10px">${esc(A('عم فكّر…', 'Denke nach …'))}</div>` : ''}
+      ${AI.preview && AI.preview.length ? `<div class="card" id="aiPlan"><b>${esc(A('هاد اللي رح يتغيّر:', 'Das wird geändert:'))}</b> <span class="pill">${AI.preview.length}</span>
+          <div style="max-height:50vh;overflow:auto;margin-top:6px">${aiPreviewHtml(AI.preview)}</div>
+          <div class="acts" style="display:flex;gap:8px;margin-top:12px"><button class="btn g" id="aiOk">${ic('check', 's')} ${esc(A('تأكيد', 'Bestätigen'))}</button><button class="btn o" id="aiNo">${esc(A('إلغاء', 'Abbrechen'))}</button></div></div>` : ''}
+      ${AI.lastLog ? `<div class="card" style="display:flex;gap:8px;align-items:center"><span class="pill ok">${ic('check', 's')}</span><div style="flex:1">${esc(A('تم التنفيذ', 'Ausgeführt'))}</div><button class="btn s o" id="aiUndo">${ic('repeat', 's')} ${esc(A('تراجع', 'Rückgängig'))}</button></div>` : ''}
+      <div class="card" style="position:sticky;bottom:8px;display:flex;gap:8px;align-items:flex-end;padding:10px">
+        <textarea id="aiIn" rows="2" style="flex:1;resize:vertical;min-height:46px" placeholder="${esc(A('مثلاً: غيّر سعر الحلاوة لـ 6 يورو', 'z. B. Preis von Halawa auf 6 € setzen'))}" ${AI.busy ? 'disabled' : ''}></textarea>
+        <button class="btn" id="aiSend" ${AI.busy ? 'disabled' : ''}>${esc(A('إرسال', 'Senden'))}</button></div>
+      ${AI.msgs.length ? `<div style="text-align:center"><button class="btn s o" id="aiNew">${esc(A('محادثة جديدة', 'Neues Gespräch'))}</button></div>` : ''}`;
+    const inp = $('#aiIn'); if (inp && !AI.busy && AI.msgs.length) inp.focus({ preventScroll: true });
+    const send = async (txt) => {
+      txt = String(txt || '').trim(); if (!txt || AI.busy) return;
+      if (!App.allow('ai', 12, 60)) return;
+      AI.msgs.push({ role: 'user', text: txt }); AI.prompt = txt; AI.plan = null; AI.preview = null; AI.lastLog = null; AI.busy = true; draw();
+      try {
+        const r = await aiCall({ mode: 'chat', messages: AI.msgs });
+        AI.msgs.push({ role: 'model', text: r.reply || (r.plan && r.plan.length ? A('راجع التغييرات تحت وأكّد.', 'Bitte Änderungen unten prüfen und bestätigen.') : '…') });
+        AI.plan = r.plan && r.plan.length ? r.plan : null; AI.preview = r.preview || null;
+      } catch (e) { AI.msgs.push({ role: 'model', text: aiErr(e) }); }
+      AI.busy = false; draw();
+      const p = $('#aiPlan'); if (p) p.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+    $('#aiSend').onclick = () => send($('#aiIn').value);
+    inp.onkeydown = e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) send(inp.value); };
+    $$('[data-ex]').forEach(b => b.onclick = () => { inp.value = b.dataset.ex; inp.focus(); });
+    if ($('#aiNew')) $('#aiNew').onclick = () => { AI.msgs = []; AI.plan = null; AI.preview = null; AI.lastLog = null; draw(); };
+    if ($('#aiNo')) $('#aiNo').onclick = () => { AI.plan = null; AI.preview = null; AI.msgs.push({ role: 'model', text: A('تمام، ما غيّرت شي.', 'OK, nichts geändert.') }); draw(); };
+    if ($('#aiOk')) $('#aiOk').onclick = async (ev) => {
+      const del = AI.preview.filter(l => l.kind === 'delete').length;
+      if (del && !confirm(A(`أكيد؟ رح ينحذف ${del} منتج.`, `Sicher? ${del} Produkt(e) werden gelöscht.`))) return;
+      ev.target.disabled = true;
+      try {
+        const r = await aiCall({ mode: 'execute', prompt: AI.prompt, plan: AI.plan });
+        AI.lastLog = r.log_id; AI.plan = null; AI.preview = null;
+        AI.msgs.push({ role: 'model', text: A(`✓ تم. (${r.done} تغيير)`, `✓ Erledigt. (${r.done} Änderung(en))`) });
+        await reloadAll(); toast('✓');
+      } catch (e) { toast(aiErr(e), 1); }
+      draw();
+    };
+    if ($('#aiUndo')) $('#aiUndo').onclick = async (ev) => {
+      if (!confirm(A('ترجّع آخر تغيير؟', 'Letzte Änderung rückgängig machen?'))) return;
+      ev.target.disabled = true;
+      try { await aiCall({ mode: 'undo', log_id: AI.lastLog }); AI.lastLog = null; AI.msgs.push({ role: 'model', text: A('↩ رجّعت التغيير.', '↩ Rückgängig gemacht.') }); await reloadAll(); toast('✓'); }
+      catch (e) { toast(aiErr(e), 1); }
+      draw();
+    };
+  };
+  draw();
+}
 function secAccount(main) {
   main.innerHTML = `<div class="card"><h3>${esc(A('تغيير كلمة السر', 'Passwort ändern'))}</h3><div class="note">${esc(A('اسم الدخول:', 'Login:'))} <b>${esc(S.staff.username)}</b></div>
     <label class="f"><span>${esc(A('كلمة السر الجديدة', 'Neues Passwort'))}</span><input type="password" id="np1"></label><label class="f"><span>${esc(A('أعدها', 'Wiederholen'))}</span><input type="password" id="np2"></label>
@@ -1446,7 +1539,7 @@ async function vDriver() {
 }
 
 /* ---------- router ---------- */
-const SECS = { customers: secCustomers, orders: secOrders, products: secProducts, stock: secStock, scan: secScan, reports: secReports, shops: secShops, staff: secStaff, coupons: secCoupons, suppliers: secSuppliers, reviews: secReviews, settings: secSettings, screens: secScreens, account: secAccount };
+const SECS = { customers: secCustomers, orders: secOrders, products: secProducts, stock: secStock, scan: secScan, reports: secReports, shops: secShops, staff: secStaff, coupons: secCoupons, suppliers: secSuppliers, reviews: secReviews, settings: secSettings, screens: secScreens, ai: secAi, account: secAccount };
 async function route(r, sec) {
   stopCamera();
   const st0 = await session();
