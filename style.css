@@ -724,3 +724,12 @@ body.dark .ai-go{color:var(--ink)}
 .ai-send:disabled{opacity:.4}
 @media print{.ai-fab,.ai-ov{display:none!important}}
 .ai-send .i{stroke-width:2.4}
+/* Kamera-Scanner: Rahmen, Hinweis, Licht */
+.scanwrap{position:relative;cursor:pointer}
+.scanvid video{width:100%;display:block}
+.scanguide{position:absolute;left:7%;right:7%;top:28%;bottom:28%;border:3px solid rgba(255,255,255,.9);border-radius:14px;box-shadow:0 0 0 9999px rgba(0,0,0,.38);pointer-events:none}
+.scanguide i{position:absolute;left:6%;right:6%;top:50%;height:2px;background:#ff3b30;box-shadow:0 0 8px #ff3b30;animation:scanl 1.6s ease-in-out infinite}
+@keyframes scanl{0%,100%{transform:translateY(-28px)}50%{transform:translateY(28px)}}
+.scantorch{position:absolute;top:10px;inset-inline-end:10px;width:44px;height:44px;border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:20px}
+.scantorch.on{background:#f6c445}
+.scanhint{background:#fff;color:#333;font-size:14px;padding:8px 12px;line-height:1.5}

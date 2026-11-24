@@ -485,7 +485,44 @@ async function offImage(url) {
   if (!/^https:\/\/images\.openfoodfacts\.org\//.test(url || '')) return null;
   try { const r = await fetch(url); if (!r.ok) return null; const b = await r.blob(); return /^image\//.test(b.type) ? b : null; } catch (_) { return null; }
 }
-function quickAdd(main, back) {
+async function eanCall(body) {
+  const { data } = await sb.auth.getSession();
+  const tok = data.session && data.session.access_token;
+  const r = await fetch(App.CFG.url + '/functions/v1/ean-lookup', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: App.CFG.key, Authorization: 'Bearer ' + tok }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(j.error || 'error'); e.code = j.error; throw e; }
+  return j;
+}
+// Server fragt: eigene Produktdatei → Open Food Facts (+ Kosmetik/Haushalt) → Google. Wenn der Server nicht antwortet: direkt Open Food Facts.
+async function eanLookup(code) {
+  try { return await eanCall({ mode: 'lookup', code }); }
+  catch (_) { const pr = await offLookup(code); return pr ? { found: true, source: 'off', product: { name_de: [String(pr.brands || '').split(',')[0].trim(), pr.product_name_de || pr.product_name, pr.quantity].filter(Boolean).join(' ').slice(0, 120), name_ar: pr.product_name_ar || '', image_url: pr.image_front_url, allergens: (pr.allergens_tags || []).map(x => OFF_ALG[x]).filter(Boolean), bev: (pr.categories_tags || []).includes('en:beverages') } } : { found: false }; }
+}
+function dataUrlBlob(u) { try { const [h, b] = String(u).split(','); const bin = atob(b); const a = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return new Blob([a], { type: (h.match(/data:([^;]+)/) || [])[1] || 'image/jpeg' }); } catch (_) { return null; } }
+function eanImportDlg() {
+  const root = modal(`<button class="ib x" data-close>✕</button><h3>${esc(A('قاعدة المنتجات', 'Produktdatei'))}</h3>
+    <p class="note">${esc(A('هون منحمّل عشرات الآلاف من المنتجات المعروفة (ألمانيا، تركيا، لبنان، سوريا…) لملف عندك. بعدها لما تمسح باركود، الاسم والصورة بيطلعوا فوراً. بتعملها مرة وحدة، وبتاخد حوالي 10 دقايق. خلّي الصفحة مفتوحة.', 'Lädt zehntausende bekannte Produkte in eure eigene Datei. Danach kommen Name und Foto beim Scannen sofort. Einmalig, ca. 10 Minuten. Seite offen lassen.'))}</p>
+    <div class="card" style="margin:8px 0"><b id="eiT">…</b><div style="height:10px;background:#eee;border-radius:6px;margin-top:8px;overflow:hidden"><div id="eiB" style="height:100%;width:0;background:var(--ok,#4a6b2a)"></div></div></div>
+    <div class="acts"><button class="btn" id="eiGo" style="flex:1">${esc(A('ابدأ التحميل', 'Laden starten'))}</button><button class="btn o" id="eiStop" hidden>${esc(A('وقّف', 'Stopp'))}</button></div>`);
+  let run = false;
+  const show = r => { $('#eiT', root).textContent = A(`بالملف: ${r.total || 0} منتج • الخطوة ${r.step || 0} من ${r.of || '?'}`, `In der Datei: ${r.total || 0} Produkte • Schritt ${r.step || 0} von ${r.of || '?'}`) + (r.done ? ' ✓' : ''); $('#eiB', root).style.width = (r.of ? Math.round(100 * (r.step || 0) / r.of) : 0) + '%'; if (r.done) { $('#eiGo', root).textContent = A('خلص ✓ (اكبس لتحمّل من جديد)', 'Fertig ✓ (nochmal laden)'); } };
+  eanCall({ mode: 'status' }).then(show).catch(() => { $('#eiT', root).textContent = A('ما قدرت أتصل بالسيرفر', 'Server nicht erreichbar'); });
+  closeModal.cb = () => { run = false; };
+  $('#eiStop', root).onclick = () => { run = false; };
+  $('#eiGo', root).onclick = async () => {
+    if (run) return; run = true; $('#eiGo', root).disabled = true; $('#eiStop', root).hidden = false;
+    let first = true, fails = 0;
+    try {
+      while (run && document.body.contains(root)) {
+        let r;
+        try { r = await eanCall({ mode: 'import', reset: first && /✓/.test($('#eiGo', root).textContent) }); fails = 0; } catch (e) { if (++fails > 3) { toast(A('صار خطأ، جرب بعدين', 'Fehler, später nochmal'), 1); break; } await new Promise(z => setTimeout(z, 15000)); continue; }
+        first = false; show(r); if (r.done) break;
+        await new Promise(z => setTimeout(z, r.wait ? 30000 : 7000)); // Open Food Facts erlaubt ca. 10 Suchanfragen pro Minute
+      }
+    } finally { run = false; if (document.body.contains(root)) { $('#eiGo', root).disabled = false; $('#eiStop', root).hidden = true; } }
+  };
+}
+function quickAdd(main, back, firstCode) {
   const D = Object.assign({ cat: '', vat: 7, unit: 'piece', track: false, stock: '', pfand: 0, look: true }, JSON.parse(localStorage.getItem('so_qa') || '{}'));
   const saveD = () => localStorage.setItem('so_qa', JSON.stringify(D));
   let cur = null; let added = []; let busy = false;
@@ -502,7 +539,8 @@ function quickAdd(main, back) {
         <div class="row"><label class="f"><span>${esc(A('الضريبة', 'MwSt'))}</span><select id="qV">${[7, 19, 0].map(v => `<option ${+D.vat === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
           <label class="f"><span>Pfand €</span><input type="number" step="0.01" min="0" id="qPf" value="${esc(D.pfand)}"></label></div>
         <label class="chk"><input type="checkbox" id="qTr" ${D.track ? 'checked' : ''}><span>${esc(A('تتبع المخزون', 'Bestand verfolgen'))}</span></label>
-        <label class="chk"><input type="checkbox" id="qLk" ${D.look ? 'checked' : ''}><span>${esc(A('جيب الاسم والصورة تلقائياً من الباركود (Open Food Facts)', 'Name und Foto automatisch suchen (Open Food Facts)'))}</span></label></div>
+        <label class="chk"><input type="checkbox" id="qLk" ${D.look ? 'checked' : ''}><span>${esc(A('جيب الاسم والصورة تلقائياً (الملف ← Open Food Facts ← جوجل)', 'Name und Foto automatisch suchen (Datei → Open Food Facts → Google)'))}</span></label>
+        ${S.staff && S.staff.role === 'admin' ? `<button class="btn s o" id="qImp" style="margin-top:8px">${esc(A('📦 قاعدة المنتجات (تحميل مرة وحدة)', '📦 Produktdatei laden (einmalig)'))}</button>` : ''}</div>
       <div class="card qa-scan"><div class="qa-st" id="qSt"></div>
         <div class="acts" style="flex-wrap:nowrap"><input type="text" id="qIn" inputmode="numeric" autocomplete="off" enterkeyhint="go" placeholder="${esc(A('امسح الباركود هون', 'Hier Barcode scannen'))}" style="flex:1;font-size:20px">
           <button class="btn s o" id="qCam" title="Kamera">${ic('camera', 's')}</button><button class="btn s o" id="qNo">${esc(A('بلا باركود', 'Ohne Barcode'))}</button></div>
@@ -521,8 +559,9 @@ function quickAdd(main, back) {
     $('#qTr').onchange = e => { D.track = e.target.checked; saveD(); if (cur) form(); };
     $('#qLk').onchange = e => { D.look = e.target.checked; saveD(); };
     $('#qNo').onclick = () => scanned('');
+    if ($('#qImp')) $('#qImp').onclick = () => eanImportDlg();
     $('#qCam').onclick = () => { if (ST.scanStop) { stopCamera(); return; } startCamera($('#qBox'), c => scanned(String(c).trim())); };
-    paintList(); if (cur) form(); setTimeout(() => inp.focus(), 50);
+    paintList(); if (cur) form(); else setTimeout(() => inp.focus(), 50);
   };
   const paintList = () => {
     if (!$('#qL')) return; $('#qN').textContent = added.length;
@@ -540,19 +579,17 @@ function quickAdd(main, back) {
     cur = { code, name_de: '', name_ar: '', price: '', vat: D.vat, pfand: D.pfand, stock: D.stock, allergens: [], img: null, imgUrl: '', loading: !!(code && D.look && /^\d{8,14}$/.test(code)), dirty: () => !!(cur && !cur.ex && (cur.name_de || cur.name_ar || cur.price)) };
     form();
     if (cur.loading) {
-      const mine = cur; const pr = await offLookup(code); if (cur !== mine) return;
+      const mine = cur; const r = await eanLookup(code); if (cur !== mine) return;
       mine.loading = false;
+      const pr = r && r.found && r.product;
       if (pr) {
-        const brand = String(pr.brands || '').split(',')[0].trim(); let n = String(pr.product_name_de || pr.product_name || '').trim();
-        if (brand && n && !n.toLowerCase().includes(brand.toLowerCase())) n = brand + ' ' + n;
-        if (pr.quantity && n && !n.includes(pr.quantity)) n += ' ' + String(pr.quantity).trim();
-        if (!mine.name_de) mine.name_de = n.slice(0, 120); if (!mine.name_ar && pr.product_name_ar) mine.name_ar = String(pr.product_name_ar).trim().slice(0, 120);
-        mine.allergens = (pr.allergens_tags || []).map(x => OFF_ALG[x]).filter(Boolean);
-        const cats = pr.categories_tags || [];
-        if (cats.includes('en:beverages') && !cats.some(c => /milks?$|dairies|dairy-drinks/.test(c))) { mine.vat = 19; mine.vatHint = true; }
-        mine.found = true;
-        offImage(pr.image_front_url).then(b => { if (b && cur === mine) { mine.img = b; mine.imgUrl = URL.createObjectURL(b); const t = $('#qImg'); if (t) t.style.backgroundImage = `url('${mine.imgUrl}')`; } });
-      } else mine.found = false;
+        if (!mine.name_de) mine.name_de = String(pr.name_de || '').slice(0, 120); if (!mine.name_ar && pr.name_ar) mine.name_ar = String(pr.name_ar).trim().slice(0, 120);
+        mine.allergens = pr.allergens || [];
+        if (pr.bev) { mine.vat = 19; mine.vatHint = true; }
+        mine.found = true; mine.src = r.source; mine.ask = !!r.confirm; mine.gp = pr; mine.sources = pr.sources || [];
+        const setImg = b => { if (b && cur === mine) { mine.img = b; mine.imgUrl = URL.createObjectURL(b); ['#qImg', '#qImg2'].forEach(id => { const t = $(id); if (t) t.style.backgroundImage = `url('${mine.imgUrl}')`; }); } };
+        if (pr.image) setImg(dataUrlBlob(pr.image)); else if (pr.image_url) offImage(pr.image_url).then(setImg);
+      } else { mine.found = false; if (r && r.error === 'quota') mine.quota = true; }
       form(true);
     }
   };
@@ -579,8 +616,11 @@ function quickAdd(main, back) {
     const c = cur;
     box.innerHTML = `<div class="card qa-f">
       <div class="li" style="align-items:center"><div class="thumb" id="qImg" style="width:64px;height:64px;${c.imgUrl ? `background-image:url('${c.imgUrl}')` : ''}"></div>
-        <div class="t"><b>${c.code ? esc(c.code) : esc(A('منتج بلا باركود', 'Ohne Barcode'))}</b><small>${c.loading ? esc(A('عم دوّر على المنتج…', 'Suche Produktdaten…')) : c.found ? esc(A('لقيت الاسم ✓ اتأكد منو', 'Gefunden ✓ bitte prüfen')) : c.found === false ? esc(A('ما لقيتو، اكتب الاسم', 'Nicht gefunden, Name eingeben')) : ''}</small></div>
+        <div class="t"><b>${c.code ? esc(c.code) : esc(A('منتج بلا باركود', 'Ohne Barcode'))}</b><small>${c.loading ? esc(A('عم دوّر على المنتج… (إذا لزم بجوجل، ممكن ياخد لـ 15 ثانية)', 'Suche Produktdaten… (bei Google bis 15 Sek.)')) : c.found ? esc(c.src === 'google' ? A('لقيتو بجوجل', 'Bei Google gefunden') : c.src === 'file' ? A('من ملف المنتجات ✓', 'Aus der Produktdatei ✓') : A('لقيت الاسم ✓ اتأكد منو', 'Gefunden ✓ bitte prüfen')) : c.found === false ? esc(c.quota ? A('ما لقيتو (بحث جوجل خلص لليوم)، اكتب الاسم', 'Nicht gefunden (Google-Limit für heute), Name eingeben') : A('ما لقيتو، اكتب الاسم أو صوّرو', 'Nicht gefunden, Name eingeben oder Foto machen')) : ''}</small></div>
         ${c.img || c.imgUrl ? '' : `<label class="btn s o" style="cursor:pointer">${ic('camera', 's')}<input type="file" accept="image/*" capture="environment" id="qPh" hidden></label>`}</div>
+      ${c.ask ? `<div class="card" style="background:#FFF7E6;border:2px solid #E8B04B;margin:8px 0"><b style="font-size:17px">${esc(A('هل هاد هو المنتج؟', 'Ist das das Produkt?'))}</b>
+        <div class="li" style="align-items:center;margin-top:6px"><div class="thumb" id="qImg2" style="width:90px;height:90px;${c.imgUrl ? `background-image:url('${c.imgUrl}')` : ''}"></div><div class="t"><b>${esc(c.name_de)}</b>${c.name_ar ? `<small dir="rtl">${esc(c.name_ar)}</small>` : ''}${c.sources.length ? `<small>${esc(A('المصدر', 'Quelle'))}: ${esc(c.sources.join(', '))}</small>` : ''}</div></div>
+        <div class="acts" style="margin-top:8px"><button class="btn" id="qYes" style="flex:1">${esc(A('✓ نعم، هاد هو', '✓ Ja, stimmt'))}</button><button class="btn o" id="qNoP" style="flex:1">${esc(A('✗ لا', '✗ Nein'))}</button></div></div>` : ''}
       <div class="row"><label class="f"><span>Name Deutsch *</span><input type="text" id="qNd" value="${esc(c.name_de)}" maxlength="120"></label>
         <label class="f"><span>الاسم بالعربي</span><input type="text" id="qNa" dir="rtl" value="${esc(c.name_ar)}" maxlength="120" placeholder="${esc(A('إذا تركتو فاضي بينحط الألماني', 'leer = wie Deutsch'))}"></label></div>
       <div class="row3"><label class="f"><span>${esc(A('السعر €', 'Preis €'))} *</span><input type="number" step="0.01" min="0" inputmode="decimal" id="qP" value="${esc(c.price)}"></label>
@@ -595,8 +635,11 @@ function quickAdd(main, back) {
     $('#qVv').onchange = e => { c.vat = +e.target.value; };
     if ($('#qPh')) $('#qPh').onchange = e => { const f = e.target.files[0]; if (!f) return; c.img = f; c.imgUrl = URL.createObjectURL(f); $('#qImg').style.backgroundImage = `url('${c.imgUrl}')`; };
     $('#qSave').onclick = () => save();
+    if ($('#qYes')) $('#qYes').onclick = () => { c.ask = false; c.ok = true; form(); };
+    if ($('#qNoP')) $('#qNoP').onclick = () => { c.ask = false; c.found = false; c.src = ''; c.name_de = ''; c.name_ar = ''; c.img = null; c.imgUrl = ''; c.vat = D.vat; c.vatHint = false; form(); };
     $('#qSk').onclick = () => { cur = null; form(); $('#qIn').focus(); };
     $$('#qF input, #qF select').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } else if (e.key === 'Escape') { cur = null; form(); $('#qIn').focus(); } }));
+    if (c.ask) { $('#qYes').focus(); return; }
     if (!keepFocus || document.activeElement === $('#qIn') || !document.activeElement || document.activeElement === document.body) { const f = c.loading ? $('#qNd') : c.name_de ? $('#qP') : $('#qNd'); f.focus(); }
   };
   const save = async () => {
@@ -605,6 +648,7 @@ function quickAdd(main, back) {
     const name_de = String(c.name_de || '').trim(), name_ar = String(c.name_ar || '').trim(), price = num(c.price);
     if (!name_de && !name_ar) { toast(A('اكتب اسم المنتج', 'Name fehlt'), 1); $('#qNd') && $('#qNd').focus(); return false; }
     if (isNaN(price) || price < 0 || String(c.price).trim() === '') { toast(A('اكتب السعر', 'Preis fehlt'), 1); $('#qP') && $('#qP').focus(); return false; }
+    if (c.ask) { toast(A('جاوب أول: هل هاد هو المنتج؟', 'Erst bestätigen: Ist das das Produkt?'), 1); return false; }
     const sid = ST.shopSel; busy = true; $('#qSave') && ($('#qSave').disabled = true);
     try {
       let image_url = null;
@@ -616,6 +660,7 @@ function quickAdd(main, back) {
       if (error) { err(error); return false; }
       if (stock) { const u = (await sb.auth.getUser()).data.user; await sb.from('stock_moves').insert({ product_id: data.id, shop_id: sid, delta: stock, reason: 'start', user_id: u && u.id }).then(() => {}, () => {}); }
       const nx = c.next;
+      if (c.ok && c.src === 'google' && c.code) eanCall({ mode: 'confirm', code: c.code, name_de: data.name_de, name_ar: data.name_ar, brand: c.gp && c.gp.brand, quantity: c.gp && c.gp.quantity, bev: +data.vat === 19, image_url: image_url || '' }).catch(() => {});
       S.products.push(data); added.unshift(data); cur = null; beepOk(); toast('✓ ' + data.name_de);
       form(); paintList(); $('#qIn') && $('#qIn').focus(); if (nx) setTimeout(() => scanned(nx), 300); return true;
     } finally { busy = false; if ($('#qSave')) $('#qSave').disabled = false; }
@@ -635,6 +680,7 @@ function quickAdd(main, back) {
   };
   document.addEventListener('keydown', onKey, true);
   draw();
+  if (firstCode) scanned(String(firstCode));
 }
 async function reloadAll() { try { await App.loadData(); } catch (e) { err(e); } }
 function compressImage(file, max) {
@@ -887,24 +933,73 @@ async function supplierOrder(sid, items) {
 /* ---------- scanner ---------- */
 let h5lib = null;
 function loadH5() { if (h5lib) return h5lib; h5lib = new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'lib/html5-qrcode.min.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); return h5lib; }
+// Prüfziffer von EAN-8 / UPC-A / EAN-13 / EAN-14 kontrollieren (verhindert falsch gelesene Nummern)
+function eanOk(c) {
+  if (!/^(\d{8}|\d{12,14})$/.test(c)) return true;
+  const d = c.split('').map(Number); const chk = d.pop(); let sum = 0;
+  d.reverse().forEach((n, i) => { sum += n * (i % 2 === 0 ? 3 : 1); });
+  return (10 - sum % 10) % 10 === chk;
+}
+// Gibt jeden Code nur einmal weiter; Zahlen-Barcodes erst, wenn Prüfziffer stimmt und sie 2× gleich gelesen wurden
+function codeFilter(onCode) {
+  let last = '', lastT = 0, cand = '', candT = 0;
+  return raw => {
+    const c = String(raw || '').trim(); if (!c) return; const now = Date.now();
+    if (/^\d+$/.test(c)) {
+      if (!eanOk(c)) return;
+      if (c !== cand || now - candT > 1500) { cand = c; candT = now; return; }
+    }
+    if (c === last && now - lastT < 2500) return;
+    last = c; lastT = now; cand = '';
+    try { navigator.vibrate && navigator.vibrate(60); } catch (_) {}
+    onCode(c);
+  };
+}
+function camFrame(box) {
+  box.innerHTML = `<div class="scanwrap"><div class="scanvid"></div><div class="scanguide"><i></i></div><button type="button" class="scantorch" hidden>💡</button></div>
+    <div class="scanhint">${esc(A('حط الباركود بالعرض جوّا المربع، وبعّد التلفون شي شبر (15–20 سم) لحتى يصير واضح. إذا ما قرا، اكبس عالصورة لتركّز.', 'Barcode quer ins Feld halten, ca. 15–20 cm Abstand, bis es scharf ist. Tippen = scharf stellen.'))}</div>`;
+  return box.querySelector('.scanvid');
+}
+async function camTune(track, box) {
+  try {
+    const caps = track.getCapabilities ? track.getCapabilities() : {};
+    const adv = {};
+    if ((caps.focusMode || []).includes('continuous')) adv.focusMode = 'continuous';
+    if (caps.zoom && caps.zoom.max >= 1.5) adv.zoom = Math.min(caps.zoom.max, 1.6); // leicht zoomen → Handy weiter weg halten → schärfer
+    if (Object.keys(adv).length) await track.applyConstraints({ advanced: [adv] }).catch(() => {});
+    const tb = box.querySelector('.scantorch');
+    if (caps.torch && tb) { let on = false; tb.hidden = false; tb.onclick = e => { e.stopPropagation(); on = !on; track.applyConstraints({ advanced: [{ torch: on }] }).catch(() => {}); tb.classList.toggle('on', on); }; }
+    const wrap = box.querySelector('.scanwrap');
+    if (wrap && (caps.focusMode || []).includes('single-shot')) wrap.onclick = () => track.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] }).then(() => adv.focusMode && track.applyConstraints({ advanced: [{ focusMode: adv.focusMode }] })).catch(() => {});
+  } catch (_) { /* Kamera ohne Extras */ }
+}
 async function startCamera(box, onCode) {
   stopCamera();
-  if ('BarcodeDetector' in window) {
+  const emit = codeFilter(onCode);
+  const HD = { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } };
+  let native = false;
+  if ('BarcodeDetector' in window) { try { const f = await window.BarcodeDetector.getSupportedFormats(); native = f.includes('ean_13'); } catch (_) {} }
+  if (native) {
     try {
-      const det = new window.BarcodeDetector({ formats: ['qr_code', 'ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a', 'upc_e', 'itf'] });
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      const v = document.createElement('video'); v.setAttribute('playsinline', ''); v.muted = true; v.srcObject = stream; box.innerHTML = ''; box.appendChild(v); await v.play();
-      let alive = true, last = '', lastT = 0;
-      const loop = async () => { if (!alive) return; try { const r = await det.detect(v); if (r.length) { const c = r[0].rawValue; if (c !== last || Date.now() - lastT > 2500) { last = c; lastT = Date.now(); onCode(c); } } } catch (e) {} setTimeout(loop, 250); };
+      const det = new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'qr_code', 'code_128', 'code_39', 'itf'] });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: HD, audio: false });
+      const holder = camFrame(box);
+      const v = document.createElement('video'); v.setAttribute('playsinline', ''); v.muted = true; v.srcObject = stream; holder.appendChild(v); await v.play();
+      const track = stream.getVideoTracks()[0]; camTune(track, box);
+      let alive = true;
+      const loop = async () => { if (!alive) return; try { if (v.readyState >= 2) { const r = await det.detect(v); for (const x of r) emit(x.rawValue); } } catch (e) {} setTimeout(loop, 120); };
       loop();
       ST.scanStop = () => { alive = false; stream.getTracks().forEach(t => t.stop()); box.innerHTML = ''; };
       return;
-    } catch (e) { /* fallback */ }
+    } catch (e) { stopCamera(); /* fallback */ }
   }
   try {
-    await loadH5(); box.innerHTML = '<div id="reader"></div>';
-    const h = new window.Html5Qrcode('reader'); let last = '', lastT = 0;
-    await h.start({ facingMode: 'environment' }, { fps: 8, qrbox: { width: 260, height: 160 } }, c => { if (c !== last || Date.now() - lastT > 2500) { last = c; lastT = Date.now(); onCode(c); } });
+    await loadH5(); const holder = camFrame(box); holder.id = 'reader'; box.querySelector('.scanguide').hidden = true;
+    const F = window.Html5QrcodeSupportedFormats || {};
+    const fmts = ['EAN_13', 'EAN_8', 'UPC_A', 'UPC_E', 'QR_CODE', 'CODE_128', 'CODE_39', 'ITF'].map(k => F[k]).filter(x => x !== undefined);
+    const h = new window.Html5Qrcode('reader', fmts.length ? { formatsToSupport: fmts, verbose: false } : undefined);
+    await h.start({ facingMode: 'environment' }, { fps: 15, videoConstraints: HD, experimentalFeatures: { useBarCodeDetectorIfSupported: true }, qrbox: (w, hh) => ({ width: Math.floor(w * 0.86), height: Math.max(80, Math.floor(Math.min(hh * 0.45, w * 0.42))) }) }, c => emit(c));
+    try { const vt = holder.querySelector('video') && holder.querySelector('video').srcObject; if (vt) camTune(vt.getVideoTracks()[0], box); } catch (_) {}
     ST.scanStop = () => { h.stop().catch(() => {}).then(() => { box.innerHTML = ''; }); };
   } catch (e) { box.innerHTML = `<div class="note" style="padding:14px">${esc(A('الكاميرا مش شغالة. اسمح للموقع باستعمال الكاميرا، أو استعمل جهاز Scanner (USB/Bluetooth).', 'Kamera nicht verfügbar. Kamerazugriff erlauben oder Hand-Scanner (USB/Bluetooth) nutzen.'))}</div>`; }
 }
@@ -946,7 +1041,7 @@ function secScan(main) {
     }
     const p = S.products.find(x => x.barcode === code && x.shop_id === ST.shopSel) || S.products.find(x => x.barcode === code && myShops().some(s => s.id === x.shop_id));
     if (!p) { res.innerHTML = `<div class="card"><b>${esc(code)}</b><p class="note">${esc(A('منتج مش موجود', 'Produkt nicht vorhanden'))}</p><button class="btn" id="nwp">${esc(A('أضفه كمنتج جديد', 'Als neues Produkt anlegen'))}</button></div>`;
-      $('#nwp').onclick = () => editProduct({ shop_id: ST.shopSel, barcode: code }, () => secScan(main)); return; }
+      $('#nwp').onclick = () => { stopCamera(); quickAdd(main, () => secScan(main), code); }; return; }
     if (mode === 'in') { const { data, error } = await sb.rpc('stock_adjust', { p_product: p.id, p_delta: 1, p_reason: 'receive', p_ref: 'Scanner' }); if (error) return err(error); p.stock = data; p.track_stock = true;
       res.innerHTML = `<div class="card"><b>${esc(L(p, 'name'))}</b> +1 → <b style="color:var(--ok)">${fq(data, p.unit)}</b><div class="acts" style="margin-top:8px"><button class="btn s o" id="rcvN">± ${esc(A('كمية تانية', 'Andere Menge'))}</button></div></div>`;
       $('#rcvN').onclick = () => receiveDlg(p); return; }
