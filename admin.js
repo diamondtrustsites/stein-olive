@@ -498,6 +498,30 @@ async function eanLookup(code) {
   try { return await eanCall({ mode: 'lookup', code }); }
   catch (_) { const pr = await offLookup(code); return pr ? { found: true, source: 'off', product: { name_de: [String(pr.brands || '').split(',')[0].trim(), pr.product_name_de || pr.product_name, pr.quantity].filter(Boolean).join(' ').slice(0, 120), name_ar: pr.product_name_ar || '', image_url: pr.image_front_url, allergens: (pr.allergens_tags || []).map(x => OFF_ALG[x]).filter(Boolean), bev: (pr.categories_tags || []).includes('en:beverages') } } : { found: false }; }
 }
+// Einheitliches Produktfoto: quadratisch, weißer Hintergrund. Hat das Bild schon weißen Rand → zuschneiden + mittig mit Abstand.
+async function proFrame(blob) {
+  try {
+    const bmp = await createImageBitmap(blob); const W = bmp.width, H = bmp.height; if (!W || !H) return blob;
+    const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+    x.fillStyle = '#fff'; x.fillRect(0, 0, W, H); x.drawImage(bmp, 0, 0);
+    const d = x.getImageData(0, 0, W, H).data; const wh = (px, py) => { const i = (py * W + px) * 4; return d[i] > 236 && d[i + 1] > 236 && d[i + 2] > 236; };
+    let n = 0, ok = 0; const st = Math.max(1, Math.round((W + H) / 600));
+    for (let i = 0; i < W; i += st) { n += 2; ok += wh(i, 0) + wh(i, H - 1); }
+    for (let j = 0; j < H; j += st) { n += 2; ok += wh(0, j) + wh(W - 1, j); }
+    let x0 = 0, y0 = 0, x1 = W - 1, y1 = H - 1; const white = n && ok / n > 0.8;
+    if (white) {
+      x0 = W; y0 = H; x1 = 0; y1 = 0;
+      for (let j = 0; j < H; j += 2) for (let i = 0; i < W; i += 2) if (!wh(i, j)) { if (i < x0) x0 = i; if (i > x1) x1 = i; if (j < y0) y0 = j; if (j > y1) y1 = j; }
+      if (x1 <= x0 || y1 <= y0) { x0 = 0; y0 = 0; x1 = W - 1; y1 = H - 1; }
+    }
+    const cw = x1 - x0 + 1, chh = y1 - y0 + 1, S = 1000; const room = white ? S * 0.84 : S;
+    const k = Math.min(room / cw, room / chh); const dw = cw * k, dh = chh * k;
+    const o = document.createElement('canvas'); o.width = S; o.height = S; const ox = o.getContext('2d');
+    ox.fillStyle = '#fff'; ox.fillRect(0, 0, S, S); ox.imageSmoothingQuality = 'high';
+    ox.drawImage(c, x0, y0, cw, chh, (S - dw) / 2, (S - dh) / 2, dw, dh);
+    return await new Promise(r => o.toBlob(b => r(b || blob), 'image/jpeg', 0.9));
+  } catch (_) { return blob; }
+}
 function dataUrlBlob(u) { try { const [h, b] = String(u).split(','); const bin = atob(b); const a = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return new Blob([a], { type: (h.match(/data:([^;]+)/) || [])[1] || 'image/jpeg' }); } catch (_) { return null; } }
 function eanImportDlg() {
   const root = modal(`<button class="ib x" data-close>✕</button><h3>${esc(A('قاعدة المنتجات', 'Produktdatei'))}</h3>
@@ -523,7 +547,7 @@ function eanImportDlg() {
   };
 }
 function quickAdd(main, back, firstCode) {
-  const D = Object.assign({ cat: '', vat: 7, unit: 'piece', track: false, stock: '', pfand: 0, look: true }, JSON.parse(localStorage.getItem('so_qa') || '{}'));
+  const D = Object.assign({ cat: '', vat: 7, unit: 'piece', track: false, stock: '', pfand: 0, look: true, pro: true }, JSON.parse(localStorage.getItem('so_qa') || '{}'));
   const saveD = () => localStorage.setItem('so_qa', JSON.stringify(D));
   let cur = null; let added = []; let busy = false;
   const draw = () => {
@@ -540,6 +564,7 @@ function quickAdd(main, back, firstCode) {
           <label class="f"><span>Pfand €</span><input type="number" step="0.01" min="0" id="qPf" value="${esc(D.pfand)}"></label></div>
         <label class="chk"><input type="checkbox" id="qTr" ${D.track ? 'checked' : ''}><span>${esc(A('تتبع المخزون', 'Bestand verfolgen'))}</span></label>
         <label class="chk"><input type="checkbox" id="qLk" ${D.look ? 'checked' : ''}><span>${esc(A('جيب الاسم والصورة تلقائياً (الملف ← Open Food Facts ← جوجل)', 'Name und Foto automatisch suchen (Datei → Open Food Facts → Google)'))}</span></label>
+        <label class="chk"><input type="checkbox" id="qPro" ${D.pro ? 'checked' : ''}><span>${esc(A('📸 دوّر على صورة احترافية بخلفية بيضا (من المتاجر)', '📸 Profi-Foto mit weißem Hintergrund suchen (aus Online-Shops)'))}</span></label>
         ${S.staff && S.staff.role === 'admin' ? `<button class="btn s o" id="qImp" style="margin-top:8px">${esc(A('📦 قاعدة المنتجات (تحميل مرة وحدة)', '📦 Produktdatei laden (einmalig)'))}</button>` : ''}</div>
       <div class="card qa-scan"><div class="qa-st" id="qSt"></div>
         <div class="acts" style="flex-wrap:nowrap"><input type="text" id="qIn" inputmode="numeric" autocomplete="off" enterkeyhint="go" placeholder="${esc(A('امسح الباركود هون', 'Hier Barcode scannen'))}" style="flex:1;font-size:20px">
@@ -558,6 +583,7 @@ function quickAdd(main, back, firstCode) {
     $('#qPf').oninput = e => { D.pfand = parseFloat(String(e.target.value).replace(',', '.')) || 0; saveD(); };
     $('#qTr').onchange = e => { D.track = e.target.checked; saveD(); if (cur) form(); };
     $('#qLk').onchange = e => { D.look = e.target.checked; saveD(); };
+    $('#qPro').onchange = e => { D.pro = e.target.checked; saveD(); };
     $('#qNo').onclick = () => scanned('');
     if ($('#qImp')) $('#qImp').onclick = () => eanImportDlg();
     $('#qCam').onclick = () => { if (ST.scanStop) { stopCamera(); return; } startCamera($('#qBox'), c => scanned(String(c).trim())); };
@@ -587,11 +613,24 @@ function quickAdd(main, back, firstCode) {
         mine.allergens = pr.allergens || [];
         if (pr.bev) { mine.vat = 19; mine.vatHint = true; }
         mine.found = true; mine.src = r.source; mine.ask = !!r.confirm; mine.gp = pr; mine.sources = pr.sources || [];
-        const setImg = b => { if (b && cur === mine) { mine.img = b; mine.imgUrl = URL.createObjectURL(b); ['#qImg', '#qImg2'].forEach(id => { const t = $(id); if (t) t.style.backgroundImage = `url('${mine.imgUrl}')`; }); } };
-        if (pr.image) setImg(dataUrlBlob(pr.image)); else if (pr.image_url) offImage(pr.image_url).then(setImg);
+        const setImg = (b, pro) => { if (b && cur === mine && !mine.own && !(mine.pro && !pro)) proFrame(b).then(f => { if (cur !== mine || mine.own) return; mine.img = f; mine.imgUrl = URL.createObjectURL(f); if (pro) mine.pro = true; paintImg(mine); }); };
+        if (pr.image) setImg(dataUrlBlob(pr.image), !!pr.pro); else if (pr.image_url) offImage(pr.image_url).then(b => setImg(b, false));
+        if (D.pro && !pr.pro && !pr.pro_tried) findPro(mine);
       } else { mine.found = false; if (r && r.error === 'quota') mine.quota = true; }
       form(true);
     }
+  };
+  const paintImg = c => { ['#qImg', '#qImg2'].forEach(id => { const t = $(id); if (t && c.imgUrl) t.style.backgroundImage = `url('${c.imgUrl}')`; }); const h = $('#qProSt'); if (h) h.innerHTML = proSt(c); };
+  const proSt = c => c.proBusy ? esc(A('📸 عم دوّر على صورة احترافية…', '📸 Suche Profi-Foto…')) : c.pro ? esc(A('📸 صورة احترافية ✓', '📸 Profi-Foto ✓')) : '';
+  const findPro = async (c, manual) => {
+    const name = c.name_de || c.name_ar; if (!name || c.proBusy) return;
+    c.proBusy = true; paintImg(c);
+    try {
+      const r = await eanCall({ mode: 'proimg', code: c.code || '', name });
+      if (r && r.found && r.image && !c.own && cur === c) { const b = dataUrlBlob(r.image); if (b && (r.pro || !c.img)) { const f = await proFrame(b); c.img = f; c.imgUrl = URL.createObjectURL(f); c.pro = !!r.pro; } }
+      else if (manual) toast(r && r.error === 'quota' ? A('بحث جوجل خلص لليوم', 'Google-Limit für heute erreicht') : A('ما لقيت صورة احترافية، صوّرها إنت', 'Kein Profi-Foto gefunden, bitte selbst fotografieren'), 1);
+    } catch (_) { if (manual) toast(A('ما زبط، جرب كمان مرة', 'Hat nicht geklappt'), 1); }
+    finally { c.proBusy = false; if (cur === c) paintImg(c); }
   };
   const form = keepFocus => {
     const box = $('#qF'); if (!box) return;
@@ -617,7 +656,9 @@ function quickAdd(main, back, firstCode) {
     box.innerHTML = `<div class="card qa-f">
       <div class="li" style="align-items:center"><div class="thumb" id="qImg" style="width:64px;height:64px;${c.imgUrl ? `background-image:url('${c.imgUrl}')` : ''}"></div>
         <div class="t"><b>${c.code ? esc(c.code) : esc(A('منتج بلا باركود', 'Ohne Barcode'))}</b><small>${c.loading ? esc(A('عم دوّر على المنتج… (إذا لزم بجوجل، ممكن ياخد لـ 15 ثانية)', 'Suche Produktdaten… (bei Google bis 15 Sek.)')) : c.found ? esc(c.src === 'google' ? A('لقيتو بجوجل', 'Bei Google gefunden') : c.src === 'file' ? A('من ملف المنتجات ✓', 'Aus der Produktdatei ✓') : A('لقيت الاسم ✓ اتأكد منو', 'Gefunden ✓ bitte prüfen')) : c.found === false ? esc(c.quota ? A('ما لقيتو (بحث جوجل خلص لليوم)، اكتب الاسم', 'Nicht gefunden (Google-Limit für heute), Name eingeben') : A('ما لقيتو، اكتب الاسم أو صوّرو', 'Nicht gefunden, Name eingeben oder Foto machen')) : ''}</small></div>
-        ${c.img || c.imgUrl ? '' : `<label class="btn s o" style="cursor:pointer">${ic('camera', 's')}<input type="file" accept="image/*" capture="environment" id="qPh" hidden></label>`}</div>
+        <div class="acts" style="flex-direction:column;gap:6px"><label class="btn s o" style="cursor:pointer">${ic('camera', 's')}<input type="file" accept="image/*" capture="environment" id="qPh" hidden></label>
+        ${c.loading || c.ask ? '' : `<button class="btn s o" id="qProB" title="${esc(A('صورة احترافية', 'Profi-Foto'))}">📸</button>`}</div></div>
+      <div class="note" id="qProSt" style="margin:-4px 0 6px">${proSt(c)}</div>
       ${c.ask ? `<div class="card" style="background:#FFF7E6;border:2px solid #E8B04B;margin:8px 0"><b style="font-size:17px">${esc(A('هل هاد هو المنتج؟', 'Ist das das Produkt?'))}</b>
         <div class="li" style="align-items:center;margin-top:6px"><div class="thumb" id="qImg2" style="width:90px;height:90px;${c.imgUrl ? `background-image:url('${c.imgUrl}')` : ''}"></div><div class="t"><b>${esc(c.name_de)}</b>${c.name_ar ? `<small dir="rtl">${esc(c.name_ar)}</small>` : ''}${c.sources.length ? `<small>${esc(A('المصدر', 'Quelle'))}: ${esc(c.sources.join(', '))}</small>` : ''}</div></div>
         <div class="acts" style="margin-top:8px"><button class="btn" id="qYes" style="flex:1">${esc(A('✓ نعم، هاد هو', '✓ Ja, stimmt'))}</button><button class="btn o" id="qNoP" style="flex:1">${esc(A('✗ لا', '✗ Nein'))}</button></div></div>` : ''}
@@ -633,9 +674,10 @@ function quickAdd(main, back, firstCode) {
     const bind = (id, k) => { const el = $(id); if (el) el.oninput = () => { c[k] = el.value; }; };
     bind('#qNd', 'name_de'); bind('#qNa', 'name_ar'); bind('#qP', 'price'); bind('#qS', 'stock'); bind('#qPf2', 'pfand');
     $('#qVv').onchange = e => { c.vat = +e.target.value; };
-    if ($('#qPh')) $('#qPh').onchange = e => { const f = e.target.files[0]; if (!f) return; c.img = f; c.imgUrl = URL.createObjectURL(f); $('#qImg').style.backgroundImage = `url('${c.imgUrl}')`; };
+    if ($('#qPh')) $('#qPh').onchange = async e => { const f = e.target.files[0]; if (!f) return; c.own = true; c.pro = false; const b = await proFrame(f); c.img = b; c.imgUrl = URL.createObjectURL(b); paintImg(c); };
+    if ($('#qProB')) $('#qProB').onclick = () => { c.own = false; findPro(c, true); };
     $('#qSave').onclick = () => save();
-    if ($('#qYes')) $('#qYes').onclick = () => { c.ask = false; c.ok = true; form(); };
+    if ($('#qYes')) $('#qYes').onclick = () => { c.ask = false; c.ok = true; form(); if (D.pro && !c.pro) findPro(c); };
     if ($('#qNoP')) $('#qNoP').onclick = () => { c.ask = false; c.found = false; c.src = ''; c.name_de = ''; c.name_ar = ''; c.img = null; c.imgUrl = ''; c.vat = D.vat; c.vatHint = false; form(); };
     $('#qSk').onclick = () => { cur = null; form(); $('#qIn').focus(); };
     $$('#qF input, #qF select').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } else if (e.key === 'Escape') { cur = null; form(); $('#qIn').focus(); } }));
@@ -652,7 +694,7 @@ function quickAdd(main, back, firstCode) {
     const sid = ST.shopSel; busy = true; $('#qSave') && ($('#qSave').disabled = true);
     try {
       let image_url = null;
-      if (c.img) { try { image_url = await uploadImage(c.img, sid, 700); } catch (_) { image_url = null; } }
+      if (c.img) { try { image_url = await uploadImage(c.img, sid, 900); } catch (_) { image_url = null; } }
       const unit = D.unit; const stock = D.track ? (num(c.stock) || 0) : 0;
       const o = { shop_id: sid, name_de: name_de || name_ar, name_ar: name_ar || name_de, price, unit, step: unit === 'kg' ? 0.25 : 1, min_qty: unit === 'kg' ? 0.25 : 1, barcode: c.code || null, category_id: D.cat || null,
         vat: [0, 7, 19].includes(+c.vat) ? +c.vat : 7, pfand: num(c.pfand) || 0, track_stock: D.track, stock, allergens: c.allergens || [], image_url, active: true };
@@ -660,6 +702,7 @@ function quickAdd(main, back, firstCode) {
       if (error) { err(error); return false; }
       if (stock) { const u = (await sb.auth.getUser()).data.user; await sb.from('stock_moves').insert({ product_id: data.id, shop_id: sid, delta: stock, reason: 'start', user_id: u && u.id }).then(() => {}, () => {}); }
       const nx = c.next;
+      if (image_url && c.code && /^\d{8,14}$/.test(c.code) && (c.pro || c.own)) eanCall({ mode: 'setimg', code: c.code, url: image_url, name_de: data.name_de, name_ar: data.name_ar }).catch(() => {});
       if (c.ok && c.src === 'google' && c.code) eanCall({ mode: 'confirm', code: c.code, name_de: data.name_de, name_ar: data.name_ar, brand: c.gp && c.gp.brand, quantity: c.gp && c.gp.quantity, bev: +data.vat === 19, image_url: image_url || '' }).catch(() => {});
       S.products.push(data); added.unshift(data); cur = null; beepOk(); toast('✓ ' + data.name_de);
       form(); paintList(); $('#qIn') && $('#qIn').focus(); if (nx) setTimeout(() => scanned(nx), 300); return true;
