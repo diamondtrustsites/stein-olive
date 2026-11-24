@@ -1415,7 +1415,7 @@ function secAi(main) {
         const r = await aiCall({ mode: 'chat', messages: AI.msgs.filter(m => !m.err) });
         AI.msgs.push({ role: 'model', text: r.reply || (r.plan && r.plan.length ? A('راجع التغييرات تحت وأكّد.', 'Bitte Änderungen unten prüfen und bestätigen.') : '…') });
         AI.plan = r.plan && r.plan.length ? r.plan : null; AI.preview = r.preview || null;
-      } catch (e) { AI.msgs.pop(); AI.msgs.push({ role: 'model', text: aiErr(e), err: true, ask: txt }); }
+      } catch (e) { AI.msgs[AI.msgs.length - 1].err = true; AI.msgs.push({ role: 'model', text: aiErr(e), err: true }); }
       AI.busy = false; draw();
       const p = $('#aiPlan'); if (p) p.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
