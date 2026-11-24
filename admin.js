@@ -127,6 +127,7 @@ function shell(sec, inner) {
      <button class="ib" id="alang">${esc(App.t('lang'))}</button></div></header>
     ${instBtn('team') && localStorage.getItem('so_inst_hide') !== '1' ? `<div class="wrap noprint instbar"><div class="card" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 12px;margin:10px 0 0">${instBtn('team')}<div class="sp" style="flex:1"></div><button class="ib" id="instX" aria-label="${esc(A('إخفاء', 'Ausblenden'))}">${ic('x')}</button></div></div>` : ''}
     <main class="wrap enter" id="amain">${inner || ''}</main>`;
+  aiFab();
   bindInst($('.instbar')); if ($('#instX')) $('#instX').onclick = () => { localStorage.setItem('so_inst_hide', '1'); const b = $('.instbar'); if (b) b.remove(); };
   $('#alang').onclick = () => { App.setLang(S.lang === 'ar' ? 'de' : 'ar'); App.route(); };
   $('#amenu').onclick = () => {
@@ -1310,7 +1311,7 @@ function secSettings(main) {
   };
   $$('#setNav [data-go]').forEach(b => b.onclick = () => show(b.dataset.go));
   $('#setBack').onclick = () => show(null);
-  show(null);
+  show(SETSEC.some(x => x[0] === ST.sub) ? ST.sub : null);
   $('#dAuto').onchange = e => { localStorage.setItem('so_autoprint', e.target.checked ? '1' : '0'); toast('✓'); };
   $('#dW').onchange = e => { localStorage.setItem('so_bon_w', e.target.value); toast('✓'); };
   $('#dC').onchange = e => { localStorage.setItem('so_bon_copies', e.target.value); toast('✓'); };
@@ -1353,8 +1354,13 @@ function secScreens(main) {
     ${myShops().map(s => `<div class="card"><b>${SI(s.type)} ${esc(L(s, 'name'))}</b><div class="acts" style="margin-top:8px"><a class="btn s" href="#/screen/${esc(s.id)}" target="_blank">${esc(A('فتح', 'Öffnen'))}</a><button class="btn s o" data-cp="${esc(base + '#/screen/' + s.id)}">${esc(A('نسخ الرابط', 'Link kopieren'))}</button></div><div class="note" style="word-break:break-all">${esc(base + '#/screen/' + s.id)}</div></div>`).join('')}`;
   $$('[data-cp]').forEach(b => b.onclick = () => navigator.clipboard.writeText(b.dataset.cp).then(() => toast('✓')));
 }
-/* ---------- KI-Assistent (nur Admin): schreiben → Vorschlag ansehen → bestätigen → rückgängig möglich ---------- */
-const AI = { msgs: [], plan: null, preview: null, prompt: '', busy: false, lastLog: null };
+/* ---------- KI-Assistent (nur Admin): schwebender Knopf auf jeder Seite + eigene Seite.
+   Schreiben → Vorschlag ansehen → bestätigen → rückgängig möglich. Kann auch zu Seiten führen. ---------- */
+const AI = { msgs: [], plan: null, preview: null, prompt: '', busy: false, lastLog: null, root: null };
+const SPARK = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c.6 3.9 2.1 5.4 6 6-3.9.6-5.4 2.1-6 6-.6-3.9-2.1-5.4-6-6 3.9-.6 5.4-2.1 6-6Z"/><path d="M19 15c.3 1.6.9 2.2 2.5 2.5-1.6.3-2.2.9-2.5 2.5-.3-1.6-.9-2.2-2.5-2.5 1.6-.3 2.2-.9 2.5-2.5Z"/></svg>';
+const SENDI = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>';
+// Seiten mit Kundendaten: deren Inhalt wird NICHT an die KI geschickt (Datenschutz), nur der Seitenname.
+const AI_PRIVATE = ['orders', 'customers', 'staff', 'reports', 'account'];
 async function aiCall(body) {
   const { data } = await sb.auth.getSession();
   const tok = data.session && data.session.access_token;
@@ -1373,14 +1379,14 @@ function aiVal(k, v) {
   return String(v);
 }
 function aiPreviewHtml(lines) {
-  const row = (cls, icn, title, body) => `<div class="li" style="align-items:flex-start"><span class="pill ${cls}">${ic(icn, 's')}</span><div class="t"><b>${title}</b>${body}</div></div>`;
+  const TAG = { update: ['be', 'edit', 'تعديل', 'Ändern'], create: ['ok', 'plus', 'جديد', 'Neu'], delete: ['bad', 'trash', 'حذف', 'Löschen'], category: ['ok', 'list', 'قسم جديد', 'Neue Kategorie'] };
   return lines.map(l => {
-    const nm = esc(S.lang === 'ar' ? l.name_ar : l.name_de) + (l.shop ? ` <small class="note">• ${esc(L(l.shop, 'name'))}</small>` : '');
-    if (l.kind === 'update') return row('be', 'edit', nm, l.diff.map(d => `<small>${esc(A((AI_F[d.field] || [d.field])[0], (AI_F[d.field] || [d.field, d.field])[1]))}: <s>${esc(aiVal(d.field, d.from))}</s> ← <b>${esc(aiVal(d.field, d.to))}</b></small>`).join(''));
-    if (l.kind === 'create') return row('ok', 'plus', nm, `<small>${esc(A('منتج جديد', 'Neues Produkt'))} • ${esc(money(l.price))}${l.unit === 'kg' ? ' / kg' : ''}${l.stock ? ' • ' + esc(A('مخزون', 'Bestand')) + ' ' + esc(l.stock) : ''}</small>`);
-    if (l.kind === 'delete') return row('bad', 'trash', nm, `<small>${esc(A('رح ينحذف', 'Wird gelöscht'))}</small>`);
-    if (l.kind === 'category') return row('ok', 'list', nm, `<small>${esc(A('قسم جديد', 'Neue Kategorie'))}</small>`);
-    return '';
+    const t = TAG[l.kind]; if (!t) return '';
+    const nm = esc(S.lang === 'ar' ? l.name_ar : l.name_de);
+    let body = '';
+    if (l.kind === 'update') body = l.diff.map(d => `<div class="ai-diff"><span>${esc(A((AI_F[d.field] || [d.field])[0], (AI_F[d.field] || [d.field, d.field])[1]))}</span><s>${esc(aiVal(d.field, d.from))}</s><i>${ic(S.lang === 'ar' ? 'back' : 'fwd', 's')}</i><b>${esc(aiVal(d.field, d.to))}</b></div>`).join('');
+    if (l.kind === 'create') body = `<div class="ai-diff"><b>${esc(money(l.price))}${l.unit === 'kg' ? ' / kg' : ''}</b>${l.stock ? `<span>${esc(A('مخزون', 'Bestand'))} ${esc(l.stock)}</span>` : ''}</div>`;
+    return `<div class="ai-row ${l.kind}"><span class="ai-ic ${t[0]}">${ic(t[1], 's')}</span><div class="ai-rt"><div class="ai-rn"><b>${nm}</b><span class="ai-tag ${t[0]}">${esc(A(t[2], t[3]))}</span></div>${l.shop ? `<small>${esc(L(l.shop, 'name'))}</small>` : ''}${body}</div></div>`;
   }).join('');
 }
 function aiErr(e) {
@@ -1390,61 +1396,128 @@ function aiErr(e) {
   if (e.detail) console.warn('admin-ai', e.detail);
   return A('صار خطأ، جرّب مرة تانية.', 'Fehler, bitte nochmal versuchen.');
 }
-function secAi(main) {
-  const ex = [A('غيّر سعر زيت الزيتون لـ 8.99', 'Setze den Preis von Olivenöl auf 8,99'), A('علّم كل الحلويات اللي فيها فستق إنها خلصانة', 'Markiere alle Süßigkeiten mit Pistazie als ausverkauft'), A('زيد أسعار الملحمة 5%', 'Erhöhe alle Preise der Metzgerei um 5 %'), A('ضيف منتج: لبنة 500غ بالسوبرماركت بسعر 2.49', 'Neues Produkt: Labneh 500 g im Supermarkt für 2,49')];
-  const draw = () => {
-    main.innerHTML = `<div class="card" style="margin-top:0"><b>${ic('chat', 's')} ${esc(A('مساعد الإدارة الذكي', 'KI-Assistent'))}</b>
-        <p class="note" style="margin:6px 0 0">${esc(A('اكتبلو شو بدك: تغيير أسعار، إضافة أو حذف منتجات، المخزون، الأقسام. ما بيتغيّر شي قبل ما تكبس «تأكيد».', 'Schreib, was du willst: Preise, Produkte anlegen/löschen, Lager, Kategorien. Nichts wird geändert, bevor du „Bestätigen“ tippst.'))}</p></div>
-      <div id="aiLog">${AI.msgs.length ? AI.msgs.map(m => `<div class="card" style="margin:8px 0;${m.role === 'user' ? 'background:var(--olive-soft);margin-inline-start:15%' : 'margin-inline-end:15%'}"><div style="white-space:pre-wrap">${esc(m.text)}</div></div>`).join('')
-        : `<div class="chips" style="display:flex;flex-wrap:wrap;gap:6px">${ex.map(t => `<button class="btn s o" data-ex="${esc(t)}">${esc(t)}</button>`).join('')}</div>`}</div>
-      ${AI.busy ? `<div class="note" style="padding:10px">${esc(A('عم فكّر…', 'Denke nach …'))}</div>` : ''}
-      ${AI.preview && AI.preview.length ? `<div class="card" id="aiPlan"><b>${esc(A('هاد اللي رح يتغيّر:', 'Das wird geändert:'))}</b> <span class="pill">${AI.preview.length}</span>
-          <div style="max-height:50vh;overflow:auto;margin-top:6px">${aiPreviewHtml(AI.preview)}</div>
-          <div class="acts" style="display:flex;gap:8px;margin-top:12px"><button class="btn g" id="aiOk">${ic('check', 's')} ${esc(A('تأكيد', 'Bestätigen'))}</button><button class="btn o" id="aiNo">${esc(A('إلغاء', 'Abbrechen'))}</button></div></div>` : ''}
-      ${AI.lastLog ? `<div class="card" style="display:flex;gap:8px;align-items:center"><span class="pill ok">${ic('check', 's')}</span><div style="flex:1">${esc(A('تم التنفيذ', 'Ausgeführt'))}</div><button class="btn s o" id="aiUndo">${ic('repeat', 's')} ${esc(A('تراجع', 'Rückgängig'))}</button></div>` : ''}
-      <div class="card" style="position:sticky;bottom:8px;display:flex;gap:8px;align-items:flex-end;padding:10px">
-        <textarea id="aiIn" rows="2" style="flex:1;resize:vertical;min-height:46px" placeholder="${esc(A('مثلاً: غيّر سعر الحلاوة لـ 6 يورو', 'z. B. Preis von Halawa auf 6 € setzen'))}" ${AI.busy ? 'disabled' : ''}></textarea>
-        <button class="btn" id="aiSend" ${AI.busy ? 'disabled' : ''}>${esc(A('إرسال', 'Senden'))}</button></div>
-      ${AI.msgs.length ? `<div style="text-align:center"><button class="btn s o" id="aiNew">${esc(A('محادثة جديدة', 'Neues Gespräch'))}</button></div>` : ''}`;
-    const inp = $('#aiIn'); if (inp && !AI.busy && AI.msgs.length) inp.focus({ preventScroll: true });
-    const send = async (txt) => {
-      txt = String(txt || '').trim(); if (!txt || AI.busy) return;
-      if (!App.allow('ai', 12, 60)) return;
-      AI.msgs.push({ role: 'user', text: txt }); AI.prompt = txt; AI.plan = null; AI.preview = null; AI.lastLog = null; AI.busy = true; draw();
-      try {
-        const r = await aiCall({ mode: 'chat', messages: AI.msgs.filter(m => !m.err) });
-        AI.msgs.push({ role: 'model', text: r.reply || (r.plan && r.plan.length ? A('راجع التغييرات تحت وأكّد.', 'Bitte Änderungen unten prüfen und bestätigen.') : '…') });
-        AI.plan = r.plan && r.plan.length ? r.plan : null; AI.preview = r.preview || null;
-      } catch (e) { AI.msgs[AI.msgs.length - 1].err = true; AI.msgs.push({ role: 'model', text: aiErr(e), err: true }); }
-      AI.busy = false; draw();
-      const p = $('#aiPlan'); if (p) p.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    };
-    $('#aiSend').onclick = () => send($('#aiIn').value);
-    inp.onkeydown = e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) send(inp.value); };
-    $$('[data-ex]').forEach(b => b.onclick = () => { inp.value = b.dataset.ex; inp.focus(); });
-    if ($('#aiNew')) $('#aiNew').onclick = () => { AI.msgs = []; AI.plan = null; AI.preview = null; AI.lastLog = null; draw(); };
-    if ($('#aiNo')) $('#aiNo').onclick = () => { AI.plan = null; AI.preview = null; AI.msgs.push({ role: 'model', text: A('تمام، ما غيّرت شي.', 'OK, nichts geändert.') }); draw(); };
-    if ($('#aiOk')) $('#aiOk').onclick = async (ev) => {
-      const del = AI.preview.filter(l => l.kind === 'delete').length;
-      if (del && !confirm(A(`أكيد؟ رح ينحذف ${del} منتج.`, `Sicher? ${del} Produkt(e) werden gelöscht.`))) return;
-      ev.target.disabled = true;
-      try {
-        const r = await aiCall({ mode: 'execute', prompt: AI.prompt, plan: AI.plan });
-        AI.lastLog = r.log_id; AI.plan = null; AI.preview = null;
-        AI.msgs.push({ role: 'model', text: A(`✓ تم. (${r.done} تغيير)`, `✓ Erledigt. (${r.done} Änderung(en))`) });
-        await reloadAll(); toast('✓');
-      } catch (e) { toast(aiErr(e), 1); }
-      draw();
-    };
-    if ($('#aiUndo')) $('#aiUndo').onclick = async (ev) => {
-      if (!confirm(A('ترجّع آخر تغيير؟', 'Letzte Änderung rückgängig machen?'))) return;
-      ev.target.disabled = true;
-      try { await aiCall({ mode: 'undo', log_id: AI.lastLog }); AI.lastLog = null; AI.msgs.push({ role: 'model', text: A('↩ رجّعت التغيير.', '↩ Rückgängig gemacht.') }); await reloadAll(); toast('✓'); }
-      catch (e) { toast(aiErr(e), 1); }
-      draw();
-    };
+const curSec = () => { const m = location.hash.match(/^#\/admin\/([a-z]+)/); return m ? m[1] : 'orders'; };
+function aiPage() {
+  const sec = curSec(); const m = MENU.find(x => x[0] === sec);
+  const o = { section: sec, title: m ? A(m[2], m[3]) : sec };
+  if (sec === 'settings' && ST.setSec) o.sub = ST.setSec;
+  if (!AI_PRIVATE.includes(sec)) { const el = $('#amain'); if (el) o.text = el.innerText.replace(/\s+\n/g, '\n').replace(/[ \t]+/g, ' ').slice(0, 2500); }
+  return o;
+}
+function aiGo(nav) {
+  if (!nav || !nav.section) return;
+  ST.sub = nav.sub || null;
+  if (nav.section === 'orders' && ['active', 'done', 'cancelled', 'all'].includes(nav.tab)) ST.tab = nav.tab;
+  aiClose();
+  const target = '#/admin/' + nav.section + (nav.sub ? '/' + nav.sub : '');
+  const after = () => { if (!nav.search) return; setTimeout(() => { const i = $('#amain input[type=search]'); if (i) { i.value = nav.search; i.dispatchEvent(new Event('input')); } }, 350); };
+  if (location.hash === target) App.route(); else location.hash = target;
+  after();
+}
+function aiExamples() {
+  const sec = curSec();
+  const base = { products: [A('شو المنتجات اللي ما إلها صورة؟', 'Welche Produkte haben kein Foto?'), A('زيد أسعار الملحمة 5%', 'Metzgerei-Preise um 5 % erhöhen')], settings: [A('وين بغيّر رسوم التوصيل؟', 'Wo ändere ich die Liefergebühr?'), A('كيف بوقّف الطلبات مؤقتاً؟', 'Wie pausiere ich Bestellungen?')], stock: [A('شو المنتجات اللي قربت تخلص؟', 'Was ist fast ausverkauft?')] }[sec] || [];
+  return base.concat([A('ودّيني على الطلبات الجديدة', 'Zeig mir die neuen Bestellungen'), A('غيّر سعر زيت الزيتون لـ 8.99', 'Olivenöl auf 8,99 setzen'), A('ضيف منتج: لبنة 500غ بالسوبرماركت بـ 2.49', 'Neu: Labneh 500 g im Supermarkt, 2,49')]).slice(0, 4);
+}
+function aiRender() {
+  const root = AI.root; if (!root) return;
+  const msgs = AI.msgs.map(m => `<div class="ai-msg ${m.role === 'user' ? 'me' : 'bot'}${m.err ? ' err' : ''}">${m.role === 'user' ? '' : `<span class="ai-av">${SPARK}</span>`}<div class="ai-bub">${esc(m.text)}${m.nav ? `<button class="ai-go" data-nav="${AI.msgs.indexOf(m)}">${ic(S.lang === 'ar' ? 'back' : 'fwd', 's')} ${esc(A('روح', 'Öffnen'))}</button>` : ''}</div></div>`).join('');
+  const hello = `<div class="ai-hello"><span class="ai-orb">${SPARK}</span><h3>${esc(A('أهلين! كيف فيني ساعدك؟', 'Hallo! Wie kann ich helfen?'))}</h3>
+      <p>${esc(A('بغيّر أسعار، بضيف وبحذف منتجات، بدبّر المخزون، وبودّيك على أي صفحة. ما بيتغيّر شي قبل ما تأكّد.', 'Preise ändern, Produkte anlegen/löschen, Lager pflegen und dich zu jeder Seite bringen. Nichts ändert sich ohne deine Bestätigung.'))}</p></div>`;
+  root.querySelector('.ai-body').innerHTML = (AI.msgs.length ? msgs : hello)
+    + (AI.busy ? `<div class="ai-msg bot"><span class="ai-av">${SPARK}</span><div class="ai-bub ai-typing"><i></i><i></i><i></i></div></div>` : '')
+    + (AI.preview && AI.preview.length ? `<div class="ai-plan" id="aiPlan"><div class="ai-ph"><b>${esc(A('التغييرات المقترحة', 'Vorgeschlagene Änderungen'))}</b><span class="ai-count">${AI.preview.length}</span></div>
+        <div class="ai-rows">${aiPreviewHtml(AI.preview)}</div>
+        <div class="ai-pa"><button class="btn g" id="aiOk">${ic('check', 's')} ${esc(A('تأكيد التنفيذ', 'Ausführen'))}</button><button class="btn o" id="aiNo">${esc(A('إلغاء', 'Abbrechen'))}</button></div></div>` : '')
+    + (AI.lastLog ? `<div class="ai-done"><span class="ai-ic ok">${ic('check', 's')}</span><span>${esc(A('تم التنفيذ', 'Ausgeführt'))}</span><button class="btn s o" id="aiUndo">${ic('repeat', 's')} ${esc(A('تراجع', 'Rückgängig'))}</button></div>` : '');
+  const chips = root.querySelector('.ai-chips');
+  chips.innerHTML = AI.busy || AI.preview ? '' : aiExamples().map(t => `<button data-ex="${esc(t)}">${esc(t)}</button>`).join('');
+  const inp = root.querySelector('.ai-in'); inp.disabled = AI.busy; root.querySelector('.ai-send').disabled = AI.busy;
+  root.querySelector('.ai-new').hidden = !AI.msgs.length;
+  const body = root.querySelector('.ai-body');
+  requestAnimationFrame(() => { const p = $('#aiPlan', root); if (p) p.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); else body.scrollTop = body.scrollHeight; });
+  $$('[data-ex]', root).forEach(b => b.onclick = () => aiSend(b.dataset.ex));
+  $$('[data-nav]', root).forEach(b => b.onclick = () => aiGo(AI.msgs[+b.dataset.nav].nav));
+  if ($('#aiNo', root)) $('#aiNo', root).onclick = () => { AI.plan = null; AI.preview = null; AI.msgs.push({ role: 'model', text: A('تمام، ما غيّرت شي.', 'OK, nichts geändert.') }); aiRender(); };
+  if ($('#aiOk', root)) $('#aiOk', root).onclick = async (ev) => {
+    const del = AI.preview.filter(l => l.kind === 'delete').length;
+    if (del && !confirm(A(`أكيد؟ رح ينحذف ${del} منتج.`, `Sicher? ${del} Produkt(e) werden gelöscht.`))) return;
+    ev.currentTarget.disabled = true;
+    try {
+      const r = await aiCall({ mode: 'execute', prompt: AI.prompt, plan: AI.plan });
+      AI.lastLog = r.log_id; AI.plan = null; AI.preview = null;
+      AI.msgs.push({ role: 'model', text: A(`✓ تم. (${r.done} تغيير)`, `✓ Erledigt. (${r.done} Änderung(en))`) });
+      await reloadAll(); toast('✓'); aiRefreshPage();
+    } catch (e) { toast(aiErr(e), 1); }
+    aiRender();
   };
-  draw();
+  if ($('#aiUndo', root)) $('#aiUndo', root).onclick = async (ev) => {
+    if (!confirm(A('ترجّع آخر تغيير؟', 'Letzte Änderung rückgängig machen?'))) return;
+    ev.currentTarget.disabled = true;
+    try { await aiCall({ mode: 'undo', log_id: AI.lastLog }); AI.lastLog = null; AI.msgs.push({ role: 'model', text: A('↩ رجّعت التغيير.', '↩ Rückgängig gemacht.') }); await reloadAll(); toast('✓'); aiRefreshPage(); }
+    catch (e) { toast(aiErr(e), 1); }
+    aiRender();
+  };
+}
+// nach einer Änderung die Seite dahinter neu zeichnen (z. B. Produktliste), außer die KI-Seite selbst
+function aiRefreshPage() { const s = curSec(); if (s !== 'ai' && ['products', 'stock', 'shops'].includes(s)) App.route(); }
+async function aiSend(txt) {
+  txt = String(txt || '').trim(); if (!txt || AI.busy) return;
+  if (!App.allow('ai', 12, 60)) return;
+  const inp = AI.root && AI.root.querySelector('.ai-in'); if (inp) { inp.value = ''; inp.style.height = ''; }
+  AI.msgs.push({ role: 'user', text: txt }); AI.prompt = txt; AI.plan = null; AI.preview = null; AI.lastLog = null; AI.busy = true; aiRender();
+  try {
+    const r = await aiCall({ mode: 'chat', messages: AI.msgs.filter(m => !m.err).map(m => ({ role: m.role, text: m.text })), page: aiPage(), lang: S.lang });
+    const nav = r.nav && r.nav.section ? r.nav : null;
+    AI.msgs.push({ role: 'model', text: r.reply || (r.plan && r.plan.length ? A('راجع التغييرات تحت وأكّد.', 'Bitte Änderungen unten prüfen und bestätigen.') : nav ? A('تفضّل:', 'Bitte:') : '…'), nav });
+    AI.plan = r.plan && r.plan.length ? r.plan : null; AI.preview = r.preview || null;
+    AI.busy = false;
+    if (nav && !AI.plan) { aiRender(); setTimeout(() => aiGo(nav), 700); return; }
+  } catch (e) { AI.msgs[AI.msgs.length - 1].err = true; AI.msgs.push({ role: 'model', text: aiErr(e), err: true }); }
+  AI.busy = false; aiRender();
+}
+function aiShell(cls) {
+  return `<div class="ai-box ${cls}"><div class="ai-head"><span class="ai-orb sm">${SPARK}</span><div class="ai-ht"><b>${esc(A('المساعد الذكي', 'KI-Assistent'))}</b><small><i class="ai-dot"></i>${esc(A('بيعرف منتجاتك وصفحاتك', 'Kennt deine Produkte und Seiten'))}</small></div>
+      <button class="ai-hb ai-new" title="${esc(A('محادثة جديدة', 'Neues Gespräch'))}" hidden>${ic('refresh', 's')}</button>${cls === 'ai-sheet' ? `<button class="ai-hb ai-x" aria-label="${esc(A('سكّر', 'Schließen'))}">${ic('x', 's')}</button>` : ''}</div>
+    <div class="ai-body"></div>
+    <div class="ai-foot"><div class="ai-chips"></div>
+      <div class="ai-bar"><textarea class="ai-in" rows="1" placeholder="${esc(A('اكتب طلبك أو سؤالك…', 'Frag oder schreib, was du willst …'))}"></textarea><button class="ai-send" aria-label="${esc(A('إرسال', 'Senden'))}">${SENDI}</button></div></div></div>`;
+}
+function aiBind(root) {
+  AI.root = root;
+  const inp = root.querySelector('.ai-in');
+  inp.oninput = () => { inp.style.height = 'auto'; inp.style.height = Math.min(inp.scrollHeight, 140) + 'px'; };
+  inp.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); aiSend(inp.value); } };
+  root.querySelector('.ai-send').onclick = () => aiSend(inp.value);
+  root.querySelector('.ai-new').onclick = () => { AI.msgs = []; AI.plan = null; AI.preview = null; AI.lastLog = null; aiRender(); };
+  const x = root.querySelector('.ai-x'); if (x) x.onclick = aiClose;
+  aiRender();
+}
+function aiOpen() {
+  if (curSec() === 'ai' || $('.ai-ov')) return;
+  const ov = document.createElement('div'); ov.className = 'ai-ov';
+  ov.innerHTML = aiShell('ai-sheet');
+  ov.onclick = e => { if (e.target === ov) aiClose(); };
+  document.body.appendChild(ov); document.body.classList.add('ai-lock');
+  aiBind(ov.querySelector('.ai-box'));
+  const f = $('.ai-fab'); if (f) f.hidden = true;
+  if (!('ontouchstart' in window)) setTimeout(() => { const i = ov.querySelector('.ai-in'); if (i) i.focus(); }, 250);
+}
+function aiClose() {
+  const ov = $('.ai-ov'); if (ov) ov.remove(); document.body.classList.remove('ai-lock');
+  if (AI.root && !document.body.contains(AI.root)) AI.root = null;
+  const f = $('.ai-fab'); if (f) f.hidden = curSec() === 'ai';
+}
+function aiFab() {
+  let f = $('.ai-fab');
+  if (!S.staff || S.staff.role !== 'admin') { if (f) f.remove(); return; }
+  if (!f) { f = document.createElement('button'); f.className = 'ai-fab noprint'; f.setAttribute('aria-label', A('المساعد الذكي', 'KI-Assistent')); f.innerHTML = SPARK; f.onclick = aiOpen; document.body.appendChild(f); }
+  f.hidden = curSec() === 'ai';
+}
+function secAi(main) {
+  aiClose();
+  main.innerHTML = aiShell('ai-pagebox');
+  aiBind(main.querySelector('.ai-box'));
 }
 function secAccount(main) {
   main.innerHTML = `<div class="card"><h3>${esc(A('تغيير كلمة السر', 'Passwort ändern'))}</h3><div class="note">${esc(A('اسم الدخول:', 'Login:'))} <b>${esc(S.staff.username)}</b></div>
@@ -1541,8 +1614,9 @@ async function vDriver() {
 
 /* ---------- router ---------- */
 const SECS = { customers: secCustomers, orders: secOrders, products: secProducts, stock: secStock, scan: secScan, reports: secReports, shops: secShops, staff: secStaff, coupons: secCoupons, suppliers: secSuppliers, reviews: secReviews, settings: secSettings, screens: secScreens, ai: secAi, account: secAccount };
-async function route(r, sec) {
+async function route(r, sec, parts) {
   stopCamera();
+  ST.sub = (parts && parts[2]) || null;
   const st0 = await session();
   // Jede App hat ihre eigenen Konten: Fahrer-App nur Fahrer, Team-App nur Verwaltung und Geschäfte.
   // (Alte Anmeldungen von früher, als alle Apps eine Anmeldung teilten, werden hier abgemeldet.)
@@ -1557,6 +1631,6 @@ async function route(r, sec) {
   const main = shell(sec);
   try { await SECS[sec](main); } catch (e) { err(e); }
 }
-function leave(r) { if (r !== 'admin' && r !== 'driver') { stopLive(); stopCamera(); if (r !== 'driver') stopGeo(); } else stopCamera(); }
+function leave(r) { if (r !== 'admin') { aiClose(); const f = $('.ai-fab'); if (f) f.remove(); } if (r !== 'admin' && r !== 'driver') { stopLive(); stopCamera(); if (r !== 'driver') stopGeo(); } else stopCamera(); }
 window.Admin = { route, leave };
 })();
