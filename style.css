@@ -815,4 +815,4 @@ body.dark .hx2-logo.lt{display:none}body.dark .hx2-logo.dk{display:block}
 .hx2-search input[type=search]{height:54px;font-size:16px;background:var(--raise);color:var(--ink);border:1px solid var(--line);box-shadow:0 8px 24px rgba(30,34,25,.08)}
 .hx2-sub{margin:14px 0 0;font-size:14px;color:var(--mute);display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap}
 @media(min-width:860px){.hx2{padding:150px 40px 40px}}
-body.hx-big .top .logo{opacity:0}.top .logo{transition:opacity .2s}
+

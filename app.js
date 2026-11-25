@@ -294,7 +294,6 @@ function topTone() {
   const tp = $('#top'); if (!tp) return;
   const band = $('#main > .hero:first-child, #main > .shead:first-child');
   tp.classList.toggle('lite', !(band && band.getBoundingClientRect().bottom > 78));
-  const hl = $('#main > .hx2:first-child .hx2-in'); document.body.classList.toggle('hx-big', !!(hl && hl.getBoundingClientRect().top > -60));
 }
 window.addEventListener('scroll', () => { if (!topTone.f) { topTone.f = 1; requestAnimationFrame(() => { topTone.f = 0; topTone(); }); } }, { passive: true });
 function tabbar(active) {
