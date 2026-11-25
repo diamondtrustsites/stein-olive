@@ -592,7 +592,9 @@ function eanImportDlg() {
 }
 /* ---------- Schnell erfassen: viele Produkte scannen → Liste → alle (oder einzeln) bestätigen und anlegen ---------- */
 function scanAdd(main, back, firstCode) {
-  const D = Object.assign({ cat: '', vat: 7, unit: 'piece', track: true, pfand: 0, look: true, pro: true, cut: true }, JSON.parse(localStorage.getItem('so_qa') || '{}'));
+  const D = Object.assign({ cat: '', vat: 7, unit: 'piece', track: true, pfand: 0, look: true, pro: true, cut: false }, JSON.parse(localStorage.getItem('so_qa') || '{}'));
+  // ab jetzt: offizielle Fotos statt ausgeschnittener Handyfotos
+  if (D.v !== 3) { D.v = 3; D.pro = true; D.cut = false; try { localStorage.setItem('so_qa', JSON.stringify(D)); } catch (_) {} }
   const saveD = () => { try { localStorage.setItem('so_qa', JSON.stringify(D)); } catch (_) {} };
   let items = []; let added = []; let seq = 0; let camOn = false;
   const num = v => parseFloat(String(v == null ? '' : v).replace(',', '.'));
@@ -611,8 +613,8 @@ function scanAdd(main, back, firstCode) {
           <label class="f"><span>Pfand €</span><input type="number" step="0.01" min="0" id="qPf" value="${esc(D.pfand)}"></label></div>
         <label class="chk"><input type="checkbox" id="qTr" ${D.track ? 'checked' : ''}><span>${esc(A('تتبع المخزون (الكمية)', 'Bestand verfolgen (Menge)'))}</span></label>
         <label class="chk"><input type="checkbox" id="qLk" ${D.look ? 'checked' : ''}><span>${esc(A('جيب الاسم والصورة تلقائياً (الملف ← Open Food Facts ← جوجل)', 'Name und Foto automatisch suchen (Datei → Open Food Facts → Google)'))}</span></label>
-        <label class="chk"><input type="checkbox" id="qPro" ${D.pro ? 'checked' : ''}><span>${esc(A('📸 دوّر على صورة احترافية من المتاجر', '📸 Profi-Foto aus Online-Shops suchen'))}</span></label>
-        <label class="chk"><input type="checkbox" id="qCut" ${D.cut ? 'checked' : ''}><span>${esc(A('🪄 شيل خلفية الصورة وخليها بيضا (أول مرة بينزّل ملف ~60MB)', '🪄 Hintergrund entfernen → weiß (beim 1. Mal ~60 MB Download)'))}</span></label>
+        <label class="chk"><input type="checkbox" id="qPro" ${D.pro ? 'checked' : ''}><span>${esc(A('📸 جيب الصورة الرسمية من جوجل (موقع الشركة أو المتاجر الكبيرة)', '📸 Offizielles Foto über Google (Hersteller oder große Shops)'))}</span></label>
+        <label class="chk"><input type="checkbox" id="qCut" ${D.cut ? 'checked' : ''}><span>${esc(A('🪄 لصور إنت بتصوّرها بس: شيل الخلفية (أول مرة بينزّل ملف ~60MB)', '🪄 Nur für eigene Fotos: Hintergrund entfernen (1. Mal ~60 MB)'))}</span></label>
         ${S.staff && S.staff.role === 'admin' ? `<button class="btn s o" id="qImp" style="margin-top:8px">${esc(A('📦 قاعدة المنتجات (تحميل مرة وحدة)', '📦 Produktdatei laden (einmalig)'))}</button>` : ''}</details>
       <div class="card qa-scan" id="qScan"><div class="qa-st" id="qSt"></div>
         <div class="acts" style="flex-wrap:nowrap"><input type="text" id="qIn" inputmode="numeric" autocomplete="off" enterkeyhint="go" placeholder="${esc(A('امسح الباركود هون', 'Hier Barcode scannen'))}" style="flex:1;font-size:20px">
@@ -655,9 +657,9 @@ function scanAdd(main, back, firstCode) {
   const status = it => {
     if (it.loading) return A('عم دوّر على المنتج…', 'Suche Produktdaten…');
     if (it.cutBusy) return A('🪄 عم شيل الخلفية…', '🪄 Hintergrund wird entfernt…');
-    if (it.proBusy) return A('📸 عم دوّر على صورة احترافية…', '📸 Suche Profi-Foto…');
+    if (it.proBusy) return A('📸 عم جيب الصورة الرسمية من جوجل…', '📸 Hole offizielles Foto…');
     if (it.ex) return A('موجود من قبل – بتقدر تغيّر السعر أو تزيد عالمخزون', 'Schon vorhanden – Preis ändern oder Bestand erhöhen');
-    if (it.found) return (it.src === 'google' ? A('لقيتو بالإنترنت', 'Im Internet gefunden') : it.src === 'file' ? A('من ملف المنتجات ✓', 'Aus der Produktdatei ✓') : A('لقيت الاسم ✓ اتأكد منو', 'Gefunden ✓ bitte prüfen')) + (it.pro || it.cutDone ? A(' • صورة احترافية ✓', ' • Profi-Foto ✓') : '');
+    if (it.found) return (it.src === 'google' ? A('لقيتو بالإنترنت', 'Im Internet gefunden') : it.src === 'file' ? A('من ملف المنتجات ✓', 'Aus der Produktdatei ✓') : A('لقيت الاسم ✓ اتأكد منو', 'Gefunden ✓ bitte prüfen')) + (it.pro ? A(' • صورة رسمية ✓', ' • Offizielles Foto ✓') : '');
     if (it.found === false) return it.quota ? A('ما لقيتو (حد البحث بالإنترنت خلص لليوم)، اكتب الاسم', 'Nicht gefunden (Internet-Limit für heute), Name eingeben') : A('ما لقيتو، اكتب الاسم أو صوّرو', 'Nicht gefunden, Name eingeben oder fotografieren');
     return '';
   };
@@ -732,7 +734,7 @@ function scanAdd(main, back, firstCode) {
     const my = (it.imgTok = (it.imgTok || 0) + 1);
     // Foto sofort zeigen, die weiße Version kommt danach
     if (!it.imgUrl || pro || it.own) { it.img = blob; it.imgUrl = URL.createObjectURL(blob); paintItem(it); }
-    const opt = { cut: D.cut && !pro, onCut: () => { it.cutBusy = true; paintItem(it); } };
+    const opt = { cut: D.cut && !pro && it.own, onCut: () => { it.cutBusy = true; paintItem(it); } };
     const p = proFrame(blob, opt); it.imgP = p;
     const f = await p; if (it.imgTok !== my) return;
     it.cutBusy = false; it.img = f; it.imgUrl = URL.createObjectURL(f); it.pro = !!pro; it.cutDone = !!opt.cutDone;
@@ -743,8 +745,8 @@ function scanAdd(main, back, firstCode) {
     const name = it.name_de || it.name_ar; if (!name || it.proBusy) { if (manual && !name) toast(A('اكتب الاسم أول', 'Erst Namen eingeben'), 1); return; }
     it.proBusy = true; paintItem(it);
     try {
-      const r = await eanCall({ mode: 'proimg', code: it.code || '', name });
-      if (r && r.found && r.image && (manual || !it.own)) { const b = dataUrlBlob(r.image); if (b && (r.pro || !it.img || manual)) { it.own = false; it.proBusy = false; await setImg(it, b, !!r.pro); } }
+      const r = await eanCall({ mode: 'proimg', code: it.code || '', name, brand: (it.gp && it.gp.brand) || '' });
+      if (r && r.found && r.image && (manual || !it.own)) { const b = dataUrlBlob(r.image); if (b && (r.pro || r.official || !it.img || manual)) { it.own = false; it.proBusy = false; await setImg(it, b, true); } }
       else if (manual) toast(r && r.error === 'quota' ? A('حد البحث بالإنترنت خلص لليوم', 'Internet-Limit für heute erreicht') : A('ما لقيت صورة احترافية، صوّرها إنت', 'Kein Profi-Foto gefunden, bitte selbst fotografieren'), 1);
     } catch (_) { if (manual) toast(A('ما زبط، جرب كمان مرة', 'Hat nicht geklappt'), 1); }
     finally { it.proBusy = false; paintItem(it); }
@@ -774,7 +776,7 @@ function scanAdd(main, back, firstCode) {
       Object.assign(it, { found: true, src: r.source, ask: !!r.confirm, gp: pr, sources: pr.sources || [] });
       paintItem(it);
       if (pr.image) setImg(it, dataUrlBlob(pr.image), !!pr.pro); else if (pr.image_url) offImage(pr.image_url).then(b => setImg(it, b, false));
-      if (D.pro && !pr.pro && !pr.pro_tried && !it.ask) findPro(it);
+      if (D.pro && !pr.pro && !it.ask) findPro(it);
       if (!it.ask && document.activeElement === $('#qIn')) { /* Hand-Scanner: bereit für den nächsten */ }
     } else { it.found = false; if (r && r.error === 'quota') it.quota = true; paintItem(it); }
   };
