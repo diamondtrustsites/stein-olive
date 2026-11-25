@@ -1925,7 +1925,11 @@ let autoImp = false;
 async function autoImport() {
   if (autoImp) return; autoImp = true;
   try {
-    let st = await eanCall({ mode: 'status' }); if (st.done) return;
+    let st;
+    // neue Version der Produktdatei (mehr Seiten je Filter): einmal von vorne laden, bestehende Einträge bleiben
+    if (localStorage.getItem('so_imp_v') !== '2') { st = await eanCall({ mode: 'import', reset: true }); try { localStorage.setItem('so_imp_v', '2'); } catch (_) {} }
+    else st = await eanCall({ mode: 'status' });
+    if (st.done) return;
     let fails = 0;
     while (!st.done && fails < 4) {
       if (document.hidden) { await new Promise(z => setTimeout(z, 20000)); continue; }
