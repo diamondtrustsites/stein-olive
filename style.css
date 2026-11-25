@@ -808,3 +808,14 @@ body.dark .pc .pr{color:#B9C784}
 .bnd-in p{margin:0;color:rgba(239,235,226,.75)}
 .bnd-in .btn{background:var(--sand);color:#1E2219}
 @media(min-width:860px){.hm-band{margin-inline:0;border-radius:28px}.bnd-in{padding:38px 44px}}
+
+/* Homepage v4 – schlicht: großes Logo, Slogan, Suche */
+.hx2{background:var(--band);color:var(--band-ink);margin:-98px -16px 0;padding:120px 20px 36px;text-align:center;position:relative;overflow:hidden}
+.hx2::before{content:"";position:absolute;inset:0;background:radial-gradient(70% 60% at 50% 0%,rgba(180,158,120,.22),transparent 70%);pointer-events:none}
+.hx2-in{position:relative;max-width:560px;margin:0 auto}
+.hx2-logo{width:min(320px,74vw);height:auto;margin:0 auto 14px;display:block}
+.hx2 h1{font-family:var(--disp);font-weight:700;font-size:clamp(24px,6.5vw,34px);line-height:1.25;margin:0 0 20px;color:#E9DDC4}
+.hx2-search input[type=search]{height:54px;font-size:16px;background:var(--raise);color:var(--ink);border:0;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.hx2-sub{margin:14px 0 0;font-size:14px;color:rgba(239,235,226,.75);display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap}
+@media(min-width:860px){.hx2{padding:150px 40px 56px}}
+body:has(#main>.hx2:first-child) .top:not(.lite) .logo{opacity:0;transition:opacity .2s}

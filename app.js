@@ -292,7 +292,7 @@ function header() {
 }
 function topTone() {
   const tp = $('#top'); if (!tp) return;
-  const band = $('#main > .hero:first-child, #main > .shead:first-child');
+  const band = $('#main > .hero:first-child, #main > .shead:first-child, #main > .hx2:first-child');
   tp.classList.toggle('lite', !(band && band.getBoundingClientRect().bottom > 78));
 }
 window.addEventListener('scroll', () => { if (!topTone.f) { topTone.f = 1; requestAnimationFrame(() => { topTone.f = 0; topTone(); }); } }, { passive: true });
@@ -486,28 +486,20 @@ function vHome() {
   const rails = shops.map(sh => { const ps = visibleProducts(sh.id).filter(p => !soldOut(p)); const list = ps.filter(p => p.featured).concat(ps.filter(p => !p.featured)).slice(0, 8); if (!list.length) return '';
     const o = openLabel(sh);
     return `<section class="hm-rail"><div class="hm-h"><a class="hm-shop" href="#/shop/${encodeURIComponent(sh.id)}"><span class="mini-arch">${shopIc(sh.type, 's')}</span><span><h2>${esc(L(sh, 'name'))}</h2><small><span class="dot ${o.on ? 'on' : ''}"></span> ${esc(o.txt)}</small></span></a><a class="more" href="#/shop/${encodeURIComponent(sh.id)}">${esc(t('seeall'))} ${ic(S.lang === 'ar' ? 'back' : 'fwd', 's')}</a></div><div class="rail">${list.map(prodCard).join('')}</div></section>`; }).join('');
-  const steps = [['store', t('hm_s1'), t('hm_s1d')], ['bag', t('hm_s2'), t('hm_s2d')], ['truck', t('hm_s3'), t('hm_s3d')]];
-  const artImgs = (feat.length >= 3 ? feat : all.filter(p => p.image_url)).slice(0, 3).map(p => p.image_url);
-  page(`<section class="hx">${ARCH_SVG}${artImgs.length === 3 ? `<div class="hx-art" aria-hidden="true">${artImgs.map((u, i) => `<span class="hx-w w${i}"><i style="${bgImg(u)}"></i></span>`).join('')}</div>` : ''}<div class="hx-in">
-      <p class="hx-kick">${esc(s.address || 'Steintorweg 4, 20099 Hamburg')}</p>
-      <h1>${esc(t('hx_t1'))}<br><span>${esc(t('hx_t2'))}</span></h1>
-      <p class="hx-sub">${esc(t('hx_sub'))}</p>
-      <div class="sbox hx-search">${ic('search')}<input type="search" id="heroQ" placeholder="${esc(t('searchph'))}" autocomplete="off" readonly></div>
-      <div class="hx-row"><a class="btn hx-cta" href="#psg" id="hxGo">${esc(t('hx_cta'))} ${ic(S.lang === 'ar' ? 'back' : 'fwd', 's')}</a>
-        <div class="hx-pts"><span>${ic('store', 's')} ${esc(t('hx_t1b'))}</span><span>${ic('bag', 's')} ${esc(t('hx_t1c'))}</span><span>${ic('truck', 's')} ${esc(t('hx_t1d'))}</span></div></div>
-      <div class="hx-facts">${s.delivery !== false && fees.length ? `<span>${ic('truck', 's')} ${esc(t('deliveryfrom'))} ${money(Math.min(...fees))}</span>` : ''}${s.pickup !== false ? `<span>${ic('store', 's')} ${esc(t('pickuphere'))}</span>` : ''}<span><i class="dot ${openN ? 'on' : ''}"></i> ${esc(openN ? t('hm_open').replace('{n}', openN).replace('{m}', shops.length) : t('closed'))}</span></div>
+  page(`<section class="hx2"><div class="hx2-in">
+      <img class="hx2-logo" src="logo.png" alt="بيت كرم – Stein & Olive">
+      <h1>${esc(t('bnd_t'))}</h1>
+      <div class="sbox hx2-search">${ic('search')}<input type="search" id="heroQ" placeholder="${esc(t('searchph'))}" autocomplete="off" readonly></div>
+      <p class="hx2-sub"><span class="dot ${openN ? 'on' : ''}"></span> ${esc(openN ? t('hm_open').replace('{n}', openN).replace('{m}', shops.length) : t('closed'))}${s.delivery !== false && fees.length ? ` · ${esc(t('deliveryfrom'))} ${money(Math.min(...fees))}` : ''}</p>
     </div></section>
    ${s.orders_paused ? `<div class="ann warn">${ic('clock', 's')} ${esc(LL(s.pause_ar, s.pause_de) || t('paused'))}</div>` : ann ? `<div class="ann">${esc(ann)}</div>` : ''}
-   <section class="hm-psg" id="psg"><div class="hm-h"><h2>${esc(t('hm_psg'))}</h2><small>${esc(t('hm_psg2'))}</small></div><div class="arches">${arches}</div></section>
+   <section class="hm-psg" id="psg"><div class="hm-h"><h2>${esc(t('hm_psg'))}</h2></div><div class="arches">${arches}</div></section>
    ${featHtml}
    ${rails}
-   <section class="hm-band"><div class="bnd-in"><img src="logo.png" alt="" aria-hidden="true"><div><h2>${esc(t('bnd_t'))}</h2><p>${esc(t('bnd_p'))}</p></div><a class="btn" href="#psg" id="bndGo">${esc(t('bnd_b'))}</a></div></section>
-   <section class="hm-how"><div class="hm-h"><h2>${esc(t('hm_how'))}</h2></div><ol class="how">${steps.map(x => `<li><span class="how-ic">${ic(x[0])}</span><b>${esc(x[1])}</b><p>${esc(x[2])}</p></li>`).join('')}</ol></section>
-   <section class="hm-info"><div class="info-c"><h3>${ic('truck', 's')} ${esc(t('deliv'))}</h3><p>${fees.length ? `${esc(t('hm_fee'))} ${money(Math.min(...fees))}${mins.length ? ` · ${esc(t('minorder'))} ${money(Math.min(...mins))}` : ''}` : esc(t('hm_nodeliv'))}</p><p class="note">${esc((s.zones || []).map(z => z.plz).join(', ').replace(/,\s*/g, ', '))}</p></div>
+   <section class="hm-info"><div class="info-c"><h3>${ic('truck', 's')} ${esc(t('deliv'))}</h3><p>${fees.length ? `${esc(t('hm_fee'))} ${money(Math.min(...fees))}${mins.length ? ` · ${esc(t('minorder'))} ${money(Math.min(...mins))}` : ''}` : esc(t('hm_nodeliv'))}</p></div>
      <div class="info-c"><h3>${ic('pin', 's')} ${esc(t('pickup'))}</h3><p>${esc(s.address || '')}</p><a class="lnk" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address || 'Steintorweg 4 Hamburg')}">${esc(t('hm_map'))}</a></div>
-     <div class="info-c"><h3>${ic('chat', 's')} ${esc(t('contact'))}</h3>${s.phone ? `<p><a href="tel:${esc(s.phone)}">${esc(s.phone)}</a></p>` : ''}${s.whatsapp ? `<p><a target="_blank" rel="noopener noreferrer" href="https://wa.me/${esc(waNum(s.whatsapp))}">WhatsApp</a></p>` : ''}${s.email ? `<p><a href="mailto:${esc(s.email)}">${esc(s.email)}</a></p>` : ''}</div></section>`, { tab: 'home' });
+     <div class="info-c"><h3>${ic('chat', 's')} ${esc(t('contact'))}</h3>${s.phone ? `<p><a href="tel:${esc(s.phone)}">${esc(s.phone)}</a></p>` : ''}${s.whatsapp ? `<p><a target="_blank" rel="noopener noreferrer" href="https://wa.me/${esc(waNum(s.whatsapp))}">WhatsApp</a></p>` : ''}</div></section>`, { tab: 'home' });
   $('#heroQ').onfocus = $('#heroQ').onclick = () => searchSheet();
-  ['#hxGo', '#bndGo'].forEach(id => { const a = $(id); if (a) a.onclick = e => { e.preventDefault(); const el = $('#psg'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }; });
   bindCards($('#main'));
   $$('.feat-big[data-p],.frow[data-p]').forEach(el => { el.onclick = e => { if (e.target.closest('[data-qa]')) return; productSheet(el.dataset.p); }; el.onkeydown = e => { if (e.key === 'Enter') productSheet(el.dataset.p); }; });
 }
