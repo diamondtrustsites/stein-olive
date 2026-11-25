@@ -730,6 +730,8 @@ function scanAdd(main, back, firstCode) {
   const setImg = async (it, blob, pro) => {
     if (!blob) return; if (it.pro && !pro && !it.own) return;
     const my = (it.imgTok = (it.imgTok || 0) + 1);
+    // Foto sofort zeigen, die weiße Version kommt danach
+    if (!it.imgUrl || pro || it.own) { it.img = blob; it.imgUrl = URL.createObjectURL(blob); paintItem(it); }
     const opt = { cut: D.cut && !pro, onCut: () => { it.cutBusy = true; paintItem(it); } };
     const p = proFrame(blob, opt); it.imgP = p;
     const f = await p; if (it.imgTok !== my) return;
@@ -816,7 +818,7 @@ function scanAdd(main, back, firstCode) {
       }
       const name_de = String(it.name_de || '').trim(), name_ar = String(it.name_ar || '').trim();
       let image_url = null;
-      if (it.img) { try { image_url = await uploadImage(it.img, sid, 1000); } catch (_) { image_url = null; } }
+      if (it.img) { try { image_url = await uploadImage(it.img, sid, 800); } catch (_) { image_url = null; } }
       const unit = D.unit; const qty = num(it.qty) || 0; const track = D.track && qty > 0 ? true : D.track;
       const o = { shop_id: sid, name_de: name_de || name_ar, name_ar: name_ar || name_de, price: num(it.price), unit, step: unit === 'kg' ? 0.25 : 1, min_qty: unit === 'kg' ? 0.25 : 1, barcode: it.code || null, category_id: D.cat || null,
         vat: [0, 7, 19].includes(+it.vat) ? +it.vat : 7, pfand: num(it.pfand) || 0, track_stock: track, stock: track ? qty : 0, allergens: it.allergens || [], image_url, active: true };
@@ -843,6 +845,8 @@ function scanAdd(main, back, firstCode) {
   };
   document.addEventListener('keydown', onKey, true);
   draw();
+  if (D.cut) setTimeout(() => { try { const id = ++bgSeq; bgJobs[id] = { res() {}, rej() {} }; bgWorker().postMessage({ id, warm: true }); } catch (_) {} }, 800);
+  loadBD().catch(() => {});
   if (firstCode) scanned(String(firstCode));
 }
 async function reloadAll() { try { await App.loadData(); } catch (e) { err(e); } }
@@ -855,7 +859,7 @@ function compressImage(file, max) {
 async function uploadImage(file, folder, max) {
   const blob = await compressImage(file, max || 900);
   const path = `${folder}/${Date.now()}-${App.uid()}.jpg`;
-  const { error } = await sb.storage.from('images').upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+  const { error } = await sb.storage.from('images').upload(path, blob, { contentType: 'image/jpeg', upsert: false, cacheControl: '31536000' });
   if (error) throw error;
   return sb.storage.from('images').getPublicUrl(path).data.publicUrl;
 }
@@ -1137,35 +1141,56 @@ async function camTune(track, box) {
     if (wrap && (caps.focusMode || []).includes('single-shot')) wrap.onclick = () => track.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] }).then(() => adv.focusMode && track.applyConstraints({ advanced: [{ focusMode: adv.focusMode }] })).catch(() => {});
   } catch (_) { /* Kamera ohne Extras */ }
 }
+// Barcode-Leser: Chrome/Android haben ihn eingebaut; iPhone & Co. bekommen ZXing (WebAssembly, lib/bd) – gleich schnell.
+let bdLib = null;
+function loadBD() {
+  if (bdLib) return bdLib;
+  bdLib = new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'lib/bd/barcode-detector.js'; sc.onload = () => {
+    try { const api = window.BarcodeDetectionAPI; api.setZXingModuleOverrides({ locateFile: (f) => new URL('lib/bd/' + f, document.baseURI).href }); res(api.BarcodeDetector); } catch (e) { rej(e); } }; sc.onerror = rej; document.head.appendChild(sc); });
+  return bdLib;
+}
+async function makeDetector() {
+  const F = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'qr_code', 'code_128', 'code_39', 'itf'];
+  if ('BarcodeDetector' in window) { try { const f = await window.BarcodeDetector.getSupportedFormats(); if (f.includes('ean_13')) return new window.BarcodeDetector({ formats: F.filter(x => f.includes(x)) }); } catch (_) {} }
+  const BD = await loadBD(); return new BD({ formats: F });
+}
 async function startCamera(box, onCode) {
   stopCamera();
   const emit = codeFilter(onCode);
   const HD = { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } };
-  let native = false;
-  if ('BarcodeDetector' in window) { try { const f = await window.BarcodeDetector.getSupportedFormats(); native = f.includes('ean_13'); } catch (_) {} }
-  if (native) {
-    try {
-      const det = new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'qr_code', 'code_128', 'code_39', 'itf'] });
-      const stream = await navigator.mediaDevices.getUserMedia({ video: HD, audio: false });
-      const holder = camFrame(box);
-      const v = document.createElement('video'); v.setAttribute('playsinline', ''); v.muted = true; v.srcObject = stream; holder.appendChild(v); await v.play();
-      const track = stream.getVideoTracks()[0]; camTune(track, box);
-      let alive = true;
-      const loop = async () => { if (!alive) return; try { if (v.readyState >= 2) { const r = await det.detect(v); for (const x of r) emit(x.rawValue); } } catch (e) {} setTimeout(loop, 120); };
-      loop();
-      ST.scanStop = () => { alive = false; stream.getTracks().forEach(t => t.stop()); box.innerHTML = ''; };
-      return;
-    } catch (e) { stopCamera(); /* fallback */ }
-  }
+  let stream = null, alive = true;
+  ST.scanStop = () => { alive = false; if (stream) stream.getTracks().forEach(t => t.stop()); box.innerHTML = ''; };
   try {
-    await loadH5(); const holder = camFrame(box); holder.id = 'reader'; box.querySelector('.scanguide').hidden = true;
-    const F = window.Html5QrcodeSupportedFormats || {};
-    const fmts = ['EAN_13', 'EAN_8', 'UPC_A', 'UPC_E', 'QR_CODE', 'CODE_128', 'CODE_39', 'ITF'].map(k => F[k]).filter(x => x !== undefined);
-    const h = new window.Html5Qrcode('reader', fmts.length ? { formatsToSupport: fmts, verbose: false } : undefined);
-    await h.start({ facingMode: 'environment' }, { fps: 15, videoConstraints: HD, experimentalFeatures: { useBarCodeDetectorIfSupported: true }, qrbox: (w, hh) => ({ width: Math.floor(w * 0.86), height: Math.max(80, Math.floor(Math.min(hh * 0.45, w * 0.42))) }) }, c => emit(c));
-    try { const vt = holder.querySelector('video') && holder.querySelector('video').srcObject; if (vt) camTune(vt.getVideoTracks()[0], box); } catch (_) {}
-    ST.scanStop = () => { h.stop().catch(() => {}).then(() => { box.innerHTML = ''; }); };
-  } catch (e) { box.innerHTML = `<div class="note" style="padding:14px">${esc(A('الكاميرا مش شغالة. اسمح للموقع باستعمال الكاميرا، أو استعمل جهاز Scanner (USB/Bluetooth).', 'Kamera nicht verfügbar. Kamerazugriff erlauben oder Hand-Scanner (USB/Bluetooth) nutzen.'))}</div>`; }
+    const detP = makeDetector(); // Leser lädt parallel zur Kamera
+    try { stream = await navigator.mediaDevices.getUserMedia({ video: HD, audio: false }); } catch (_) { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }); }
+    if (!alive) { stream.getTracks().forEach(t => t.stop()); return; }
+    const holder = camFrame(box);
+    const v = document.createElement('video'); v.setAttribute('playsinline', ''); v.setAttribute('muted', ''); v.muted = true; v.autoplay = true; v.srcObject = stream; holder.appendChild(v); await v.play().catch(() => {});
+    camTune(stream.getVideoTracks()[0], box);
+    const det = await detP;
+    // nur den Bereich im Rahmen lesen (mittleres Band) → schneller und genauer; jedes 3. Bild das ganze Bild
+    const cv = document.createElement('canvas'); const cx = cv.getContext('2d', { willReadFrequently: true }); let n = 0;
+    const loop = async () => {
+      if (!alive) return;
+      try {
+        if (v.readyState >= 2 && v.videoWidth) {
+          const W = v.videoWidth, H = v.videoHeight; let r;
+          if (n++ % 3 === 2) r = await det.detect(v);
+          else {
+            const sw = Math.round(W * 0.9), sh = Math.round(H * 0.5), sx = Math.round((W - sw) / 2), sy = Math.round((H - sh) / 2);
+            const k = Math.min(1, 1280 / sw); cv.width = Math.round(sw * k); cv.height = Math.round(sh * k);
+            cx.drawImage(v, sx, sy, sw, sh, 0, 0, cv.width, cv.height); r = await det.detect(cv);
+          }
+          for (const x of r || []) emit(x.rawValue);
+        }
+      } catch (_) {}
+      if (alive) setTimeout(loop, 60);
+    };
+    loop();
+  } catch (e) {
+    ST.scanStop && ST.scanStop(); ST.scanStop = null;
+    box.innerHTML = `<div class="note" style="padding:14px">${esc(A('الكاميرا مش شغالة. اسمح للموقع باستعمال الكاميرا (من إعدادات المتصفح)، أو استعمل جهاز Scanner.', 'Kamera nicht verfügbar. Kamerazugriff im Browser erlauben oder Hand-Scanner nutzen.'))}</div>`;
+  }
 }
 function stopCamera() { if (ST.scanStop) { try { ST.scanStop(); } catch (e) {} ST.scanStop = null; } }
 function scanOnce(cb) {
@@ -1890,7 +1915,22 @@ async function route(r, sec, parts) {
   stopLive();
   sec = SECS[sec] && MENU.find(m => m[0] === sec && m[4].includes(st.role)) ? sec : 'orders';
   const main = shell(sec);
+  if (st.role === 'admin') autoImport();
   try { await SECS[sec](main); } catch (e) { err(e); }
+}
+// Produktdatei für den Scanner im Hintergrund füllen, solange ein Admin den Verwaltungsbereich offen hat (läuft nur 1× pro Sitzung)
+let autoImp = false;
+async function autoImport() {
+  if (autoImp) return; autoImp = true;
+  try {
+    let st = await eanCall({ mode: 'status' }); if (st.done) return;
+    let fails = 0;
+    while (!st.done && fails < 4) {
+      if (document.hidden) { await new Promise(z => setTimeout(z, 20000)); continue; }
+      try { st = await eanCall({ mode: 'import' }); fails = 0; } catch (_) { fails++; await new Promise(z => setTimeout(z, 30000)); continue; }
+      await new Promise(z => setTimeout(z, st.wait ? 30000 : 7000)); // Open Food Facts: max. ca. 10 Suchanfragen pro Minute
+    }
+  } catch (_) { /* still */ }
 }
 function leave(r) { if (r !== 'admin') { aiClose(); const f = $('.ai-fab'); if (f) f.remove(); } if (r !== 'admin' && r !== 'driver') { stopLive(); stopCamera(); if (r !== 'driver') stopGeo(); } else stopCamera(); }
 window.Admin = { route, leave };

@@ -765,3 +765,46 @@ body:has(.qa-bar:not([hidden])) .ai-fab{bottom:calc(96px + env(safe-area-inset-b
 .qa-it .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 .qa-it .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .qa-it .f input,.qa-it .f select{min-width:0}
+
+/* =========================================================
+   Homepage v3 – „من بيت كرم لبيتك“
+   ========================================================= */
+.hx{background:radial-gradient(120% 90% at 85% 0%,rgba(79,91,46,.16) 0%,rgba(79,91,46,0) 55%),radial-gradient(90% 70% at 0% 10%,rgba(180,158,120,.28) 0%,rgba(180,158,120,0) 60%),linear-gradient(180deg,#E6DFD1 0%,#ECE6DA 62%,var(--bg) 100%)}
+body.dark .hx{background:radial-gradient(120% 90% at 85% 0%,rgba(154,168,102,.14) 0%,rgba(0,0,0,0) 55%),linear-gradient(180deg,#232719 0%,#1B1E14 70%,var(--bg) 100%)}
+.hx h1{font-size:clamp(42px,11.5vw,80px)}
+.hx h1 span{background:linear-gradient(90deg,var(--olive),#7A8A3E);-webkit-background-clip:text;background-clip:text;color:transparent}
+body.dark .hx h1 span{background:linear-gradient(90deg,#B9C784,#D8C99B);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hx-kick{padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.6);border:1px solid rgba(30,34,25,.08)}
+body.dark .hx-kick{background:rgba(255,255,255,.05);border-color:var(--line)}
+.hx-row{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px;margin-top:16px}
+.hx-cta{padding:14px 24px;font-size:16px;box-shadow:0 10px 24px rgba(79,91,46,.28)}
+.hx-pts{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:14px;color:var(--ink2)}
+.hx-pts span{display:inline-flex;align-items:center;gap:6px}
+.hx-pts svg{color:var(--olive)}
+.hx-facts{margin-top:14px}
+
+/* Abschnitts-Titel mit kleinem Ornament */
+.hm-h h2{position:relative;padding-bottom:8px}
+.hm-h h2::after{content:"";position:absolute;bottom:0;inset-inline-start:0;width:38px;height:3px;border-radius:3px;background:linear-gradient(90deg,var(--olive),var(--sand))}
+.hm-shop h2::after{display:none}
+
+/* Produktkarten: Profi-Fotos auf Weiß */
+.pc{border-radius:20px;transition:transform .25s cubic-bezier(.2,.7,.2,1),box-shadow .25s}
+.pc .im{background-color:#fff;background-size:contain;background-origin:content-box;padding:12px;border-bottom:1px solid var(--line)}
+body.dark .pc .im{background-color:#F4F2EC}
+@media(hover:hover){.pc:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(30,34,25,.12)}}
+.pc .pr{color:var(--olive);font-size:16px}
+body.dark .pc .pr{color:#B9C784}
+.frow .thumb,.feat-im{background-color:#fff;background-size:contain;background-repeat:no-repeat;background-position:center}
+.feat-im{background-origin:content-box;padding:18px}
+
+/* Marken-Band */
+.hm-band{margin:40px -16px 0;background:var(--band);color:var(--band-ink);position:relative;overflow:hidden}
+.hm-band::before{content:"";position:absolute;inset:0;background:radial-gradient(60% 120% at 100% 0%,rgba(180,158,120,.25),transparent 60%),radial-gradient(50% 100% at 0% 100%,rgba(154,168,102,.22),transparent 60%);pointer-events:none}
+.bnd-in{position:relative;max-width:1180px;margin:auto;padding:30px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:16px 24px}
+.bnd-in img{width:120px;opacity:.95}
+.bnd-in>div{flex:1;min-width:220px}
+.bnd-in h2{font-family:var(--disp);font-weight:700;font-size:clamp(24px,6vw,36px);margin:0 0 4px;line-height:1.15}
+.bnd-in p{margin:0;color:rgba(239,235,226,.75)}
+.bnd-in .btn{background:var(--sand);color:#1E2219}
+@media(min-width:860px){.hm-band{margin-inline:0;border-radius:28px}.bnd-in{padding:38px 44px}}
