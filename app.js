@@ -292,8 +292,9 @@ function header() {
 }
 function topTone() {
   const tp = $('#top'); if (!tp) return;
-  const band = $('#main > .hero:first-child, #main > .shead:first-child, #main > .hx2:first-child');
+  const band = $('#main > .hero:first-child, #main > .shead:first-child');
   tp.classList.toggle('lite', !(band && band.getBoundingClientRect().bottom > 78));
+  const hl = $('#main > .hx2:first-child .hx2-in'); document.body.classList.toggle('hx-big', !!(hl && hl.getBoundingClientRect().top > -60));
 }
 window.addEventListener('scroll', () => { if (!topTone.f) { topTone.f = 1; requestAnimationFrame(() => { topTone.f = 0; topTone(); }); } }, { passive: true });
 function tabbar(active) {
@@ -487,7 +488,7 @@ function vHome() {
     const o = openLabel(sh);
     return `<section class="hm-rail"><div class="hm-h"><a class="hm-shop" href="#/shop/${encodeURIComponent(sh.id)}"><span class="mini-arch">${shopIc(sh.type, 's')}</span><span><h2>${esc(L(sh, 'name'))}</h2><small><span class="dot ${o.on ? 'on' : ''}"></span> ${esc(o.txt)}</small></span></a><a class="more" href="#/shop/${encodeURIComponent(sh.id)}">${esc(t('seeall'))} ${ic(S.lang === 'ar' ? 'back' : 'fwd', 's')}</a></div><div class="rail">${list.map(prodCard).join('')}</div></section>`; }).join('');
   page(`<section class="hx2"><div class="hx2-in">
-      <img class="hx2-logo" src="logo.png" alt="بيت كرم – Stein & Olive">
+      <img class="hx2-logo lt" src="logo-dark.png" alt="بيت كرم – Stein & Olive"><img class="hx2-logo dk" src="logo.png" alt="" aria-hidden="true">
       <h1>${esc(t('bnd_t'))}</h1>
       <div class="sbox hx2-search">${ic('search')}<input type="search" id="heroQ" placeholder="${esc(t('searchph'))}" autocomplete="off" readonly></div>
       <p class="hx2-sub"><span class="dot ${openN ? 'on' : ''}"></span> ${esc(openN ? t('hm_open').replace('{n}', openN).replace('{m}', shops.length) : t('closed'))}${s.delivery !== false && fees.length ? ` · ${esc(t('deliveryfrom'))} ${money(Math.min(...fees))}` : ''}</p>
