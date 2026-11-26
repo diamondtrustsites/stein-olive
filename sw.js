@@ -1,4 +1,4 @@
-const C='so-v28';const SHELL=['./','index.html','style.css?v=28','config.js?v=28','app.js?v=28','admin.js?v=28','boot.js?v=28','logo.png','logo-dark.png','lib/supabase.js','lib/qrcode.js'];
+const C='so-v29';const SHELL=['./','index.html','style.css?v=29','config.js?v=29','app.js?v=29','admin.js?v=29','boot.js?v=29','logo.png','logo-dark.png','lib/supabase.js','lib/qrcode.js'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==location.origin)return;

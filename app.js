@@ -1140,32 +1140,82 @@ function vLegal(kind) {
 
 /* ---------- TV menu screen ---------- */
 let tvTimer = null;
-function vScreen(id) {
-  clearInterval(tvTimer);
+// Menü-Bildschirme (Smart-TV, 40 Zoll quer). Link: #/screen/<geschäft>/<nr>/<anzahl>, z. B. #/screen/metzgerei/1/2 und …/2/2.
+// Bei 2 Bildschirmen werden die Kategorien gleichmäßig auf beide verteilt. Passt nicht alles drauf, wird automatisch geblättert.
+const TV_TONE = { bakery: '#D9A85B', butcher: '#C0594A', sweets: '#D99A7C', deli: '#A9B56B', restaurant: '#B9C784', supermarket: '#C9B590', falafel: '#9CC06A' };
+function vScreen(id, nr, of) {
+  clearInterval(tvTimer); clearInterval(vScreen.hero);
   const sh = shopById(id); if (!sh) { $('#app').innerHTML = '<div class="empty">?</div>'; return; }
+  nr = Math.max(1, parseInt(nr, 10) || 1); of = Math.max(nr, parseInt(of, 10) || 1);
   document.body.classList.add('tvmode'); document.body.style.cursor = 'none';
-  let pageNo = 0;
-  const render = () => {
+  const tone = TV_TONE[sh.type] || '#C9B590';
+  let pageNo = 0, heroNo = 0;
+  const groups = () => {
     const prods = visibleProducts(id).filter(p => !soldOut(p));
     const cats = S.cats.filter(c => c.shop_id === id);
-    const blocks = [];
-    cats.forEach(c => { const l = prods.filter(p => p.category_id === c.id); if (l.length) { blocks.push({ cat: c }); l.forEach(p => blocks.push({ p })); } });
-    prods.filter(p => !cats.some(c => c.id === p.category_id)).forEach(p => blocks.push({ p }));
-    const per = 15; const pages = Math.max(1, Math.ceil(blocks.length / per)); pageNo = pageNo % pages;
-    const chunk = blocks.slice(pageNo * per, pageNo * per + per);
-    $('#app').innerHTML = `<div class="tv"><div class="th"><img src="logo.png" alt=""><h1>${esc(sh.name_ar)} · ${esc(sh.name_de)}</h1><div style="font-size:3vh;color:#99978A">${pages > 1 ? (pageNo + 1) + ' / ' + pages : ''}</div></div>
-      <div class="tg">${chunk.map(b => b.cat ? `<div class="cat">${esc(b.cat.name_ar)} · ${esc(b.cat.name_de)}</div>` : `<div class="ti">${safeUrl(b.p.image_url) ? `<img src="${esc(safeUrl(b.p.image_url))}" alt="">` : '<div class="ph"></div>'}<div><b>${esc(b.p.name_ar)}</b><small>${esc(b.p.name_de)}</small><span class="p">${priceText(b.p)}</span></div></div>`).join('')}</div></div>`;
+    const g = cats.map(c => ({ cat: c, items: prods.filter(p => p.category_id === c.id) })).filter(x => x.items.length);
+    const rest = prods.filter(p => !cats.some(c => c.id === p.category_id)); if (rest.length) g.push({ cat: null, items: rest });
+    if (of === 1) return g;
+    // gleichmäßig verteilen: Kategorien der Reihe nach, bis jeder Bildschirm ca. gleich viele Zeilen hat
+    const total = g.reduce((n, x) => n + x.items.length + 1, 0); const share = total / of; const out = Array.from({ length: of }, () => []);
+    let k = 0, acc = 0; g.forEach(x => { if (acc >= share * (k + 1) && k < of - 1) k++; out[k].push(x); acc += x.items.length + 1; });
+    return out[nr - 1];
   };
-  render();
+  const row = p => `<div class="tv2-it"><div class="tv2-n"><b dir="rtl">${esc(p.name_ar)}</b><small>${esc(p.name_de)}</small></div><i></i><span class="tv2-p">${esc(money(p.price))}${p.unit === 'kg' ? '<em>/kg</em>' : ''}</span></div>`;
+  const head = c => `<div class="tv2-cat"><span dir="rtl">${esc(c ? c.name_ar : sh.name_ar)}</span><small>${esc(c ? c.name_de : sh.name_de)}</small></div>`;
+  const shell = (heroHtml) => `<div class="tv2" style="--tone:${tone}">
+      <header class="tv2-h"><img src="logo.png" alt=""><div class="tv2-t"><h1 dir="rtl">${esc(sh.name_ar)}</h1><span>${esc(sh.name_de)}</span></div><div class="tv2-pg" id="tvPg"></div></header>
+      <main class="tv2-b"><div class="tv2-list" id="tvList"></div>${heroHtml}</main>
+      <footer class="tv2-f"><span dir="rtl">اطلب أونلاين · توصيل لعندك</span><b>stein-olive.de</b><span>Online bestellen · Lieferung</span></footer></div>`;
+  // Seiten so bilden, dass jede Seite genau auf den Bildschirm passt
+  const paginate = (list, blocks) => {
+    const pages = []; let cur = [];
+    const fits = () => list.scrollWidth <= list.clientWidth + 2;
+    for (const b of blocks) {
+      cur.push(b); list.innerHTML = cur.join('');
+      if (!fits() && cur.length > 1) { cur.pop(); pages.push(cur); cur = [b]; list.innerHTML = b; }
+    }
+    if (cur.length) pages.push(cur);
+    return pages;
+  };
+  let pages = [], heroes = [];
+  const build = () => {
+    const g = groups();
+    heroes = g.flatMap(x => x.items).filter(p => safeUrl(p.image_url)).sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0)).slice(0, 12);
+    const hero = heroes.length ? `<aside class="tv2-hero" id="tvHero"></aside>` : '';
+    $('#app').innerHTML = shell(hero);
+    const list = $('#tvList');
+    const blocks = []; g.forEach(x => { blocks.push(head(x.cat)); x.items.forEach(p => blocks.push(row(p))); });
+    pages = blocks.length ? paginate(list, blocks) : [[`<div class="tv2-empty" dir="rtl">قريباً · Bald</div>`]];
+    pageNo = pageNo % pages.length; show();
+    showHero();
+  };
+  const show = () => {
+    const list = $('#tvList'); if (!list) return;
+    list.classList.remove('in'); void list.offsetWidth;
+    list.innerHTML = pages[pageNo].join(''); list.classList.add('in');
+    const pg = $('#tvPg'); if (pg) pg.textContent = pages.length > 1 ? (pageNo + 1) + ' / ' + pages.length : '';
+  };
+  const showHero = () => {
+    const h = $('#tvHero'); if (!h || !heroes.length) return;
+    const p = heroes[heroNo % heroes.length];
+    h.innerHTML = `<div class="tv2-hi in"><div class="tv2-img" style="background-image:url('${esc(safeUrl(p.image_url))}')"></div><div class="tv2-hc"><b dir="rtl">${esc(p.name_ar)}</b><small>${esc(p.name_de)}</small><span>${esc(money(p.price))}${p.unit === 'kg' ? ' /kg' : ''}</span></div></div>`;
+  };
+  build();
   let tick = 0;
-  tvTimer = setInterval(async () => { tick++; pageNo++; if (tick % 5 === 0) { try { await loadData(); } catch (e) {} } render(); }, 12000);
+  vScreen.hero = setInterval(() => { heroNo++; showHero(); }, 8000);
+  tvTimer = setInterval(async () => {
+    tick++;
+    if (tick % 4 === 0) { try { await loadData(); } catch (e) {} build(); return; } // jede Minute neue Preise
+    if (pages.length > 1) { pageNo = (pageNo + 1) % pages.length; show(); }
+  }, 15000);
 }
 
 /* ---------- router ---------- */
 async function route() {
   const h = location.hash.replace(/^#\/?/, '').split('?')[0];
   const [r, a] = h.split('/');
-  if (r !== 'screen') { clearInterval(tvTimer); document.body.style.cursor = ''; }
+  if (r !== 'screen' && r !== 'tv') { clearInterval(tvTimer); clearInterval(vScreen.hero); document.body.style.cursor = ''; }
   if (r !== 'track') clearInterval(trackTimer);
   if (!$('#modal').hidden) closeModal();
   const ss = $('.ssheet'); if (ss) { ss.remove(); document.body.style.overflow = ''; }
@@ -1183,7 +1233,7 @@ async function route() {
   if (r === 'reset') return vReset(a);
   if (r === 'settings') return vSettings();
   if (r === 'impressum' || r === 'datenschutz' || r === 'agb') return vLegal(r);
-  if (r === 'screen') return vScreen(decodeURIComponent(a || ''));
+  if (r === 'screen' || r === 'tv') { const parts = h.split('/'); return vScreen(decodeURIComponent(a || ''), parts[2], parts[3]); }
   return vHome();
 }
 

@@ -1635,10 +1635,21 @@ function secSettings(main) {
   };
 }
 function secScreens(main) {
-  const base = location.origin + location.pathname;
-  main.innerHTML = `<p class="note">${esc(A('افتح الرابط على شاشة التلفزيون (متصفح الـ Smart TV) واعمل Vollbild. المنيو بيتحدّث لحاله كل دقيقة، والمنتجات النافذة بتختفي.', 'Link im Browser des Smart-TVs öffnen und Vollbild aktivieren. Die Karte aktualisiert sich jede Minute, ausverkaufte Produkte verschwinden.'))}</p>
-    ${myShops().map(s => `<div class="card"><b>${SI(s.type)} ${esc(L(s, 'name'))}</b><div class="acts" style="margin-top:8px"><a class="btn s" href="#/screen/${esc(s.id)}" target="_blank">${esc(A('فتح', 'Öffnen'))}</a><button class="btn s o" data-cp="${esc(base + '#/screen/' + s.id)}">${esc(A('نسخ الرابط', 'Link kopieren'))}</button></div><div class="note" style="word-break:break-all">${esc(base + '#/screen/' + s.id)}</div></div>`).join('')}`;
-  $$('[data-cp]').forEach(b => b.onclick = () => navigator.clipboard.writeText(b.dataset.cp).then(() => toast('✓')));
+  const base = location.origin + '/';
+  const KEY = 'so_tvn'; let N = {}; try { N = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (_) {}
+  const draw = () => {
+    main.innerHTML = `<p class="note">${esc(A('افتح الرابط على متصفح التلفزيون (Smart TV) واعمل شاشة كاملة. المنيو بيتحدّث لحالو كل دقيقة، والمنتجات الخلصانة بتختفي لحالها. إذا المحل عندو شاشتين، الأقسام بتتقسم عليهن تلقائياً.', 'Link im Browser des Smart-TV öffnen und Vollbild. Das Menü aktualisiert sich jede Minute, ausverkaufte Produkte verschwinden. Bei 2 Bildschirmen werden die Kategorien automatisch aufgeteilt.'))}</p>
+    ${myShops().map(sh => { const n = N[sh.id] || 2;
+      return `<div class="card"><div class="li" style="align-items:center"><div class="t"><b>${SI(sh.type)} ${esc(L(sh, 'name'))}</b></div>
+        <label class="f" style="margin:0;min-width:140px"><span>${esc(A('عدد الشاشات', 'Bildschirme'))}</span><select data-n="${esc(sh.id)}">${[1, 2, 3].map(v => `<option ${v === n ? 'selected' : ''}>${v}</option>`).join('')}</select></label></div>
+        ${Array.from({ length: n }, (_, i) => { const url = `${base}#/tv/${sh.id}/${i + 1}/${n}`;
+          return `<div class="row" style="align-items:center;margin-top:8px"><b>${esc(A('شاشة', 'Bildschirm'))} ${i + 1}</b>
+            <div class="acts"><a class="btn s" href="${esc(url)}" target="_blank">${esc(A('فتح', 'Öffnen'))}</a><button class="btn s o" data-cp="${esc(url)}">${esc(A('نسخ الرابط', 'Link kopieren'))}</button></div></div>
+            <div class="note" style="word-break:break-all;font-size:15px" dir="ltr">${esc(url.replace(/^https?:\/\//, ''))}</div>`; }).join('')}</div>`; }).join('')}`;
+    $$('[data-cp]').forEach(b => b.onclick = () => navigator.clipboard.writeText(b.dataset.cp).then(() => toast('✓')));
+    $$('[data-n]').forEach(sel => sel.onchange = () => { N[sel.dataset.n] = +sel.value; try { localStorage.setItem(KEY, JSON.stringify(N)); } catch (_) {} draw(); });
+  };
+  draw();
 }
 /* ---------- KI-Assistent (nur Admin): schwebender Knopf auf jeder Seite + eigene Seite.
    Schreiben → Vorschlag ansehen → bestätigen → rückgängig möglich. Kann auch zu Seiten führen. ---------- */
