@@ -104,6 +104,9 @@
     H('lahm-bi-ajin', 'Herzhaft', 'للجوعانين'),
     brandScene(),
   ];
+  // ?only=menu → nur die Karte; ?only=rest → alles außer der Karte
+  if (Q.get('only') === 'menu') { seq.length = 0; seq.push(menuScene()); }
+  if (Q.get('only') === 'rest') { for (let i = seq.length - 1; i >= 0; i--) if (seq[i].cls === 'menu') seq.splice(i, 1); }
   // Bildschirm 2 läuft versetzt, damit beide nie dasselbe zeigen
   let n = Q.has('scene') ? +Q.get('scene') : (S === '2' ? 2 : 0);
 
@@ -112,12 +115,25 @@
     <main id="st"></main>
     <div class="tick"><div class="tk">${Array(3).fill('<span>Frisch aus dem Ofen</span><i>✦</i><span>طازة من الفرن</span><i>✦</i><span>Online bestellen · stein-olive.de</span><i>✦</i><span>اطلب أونلاين ومنوصّلك</span><i>✦</i>').join('')}</div></div>
   </div>`;
+  // Video-Modus (?video=1): mehr Animation, nur für die Aufnahme als Video-Datei
+  if (Q.has('video')) {
+    document.body.classList.add('vid');
+    // Video-Länge L (Sekunden): alle Endlos-Animationen so, dass sie genau aufgehen → nahtlose Schleife
+    const LEN = +Q.get('L') || 172, fit = (d) => LEN / Math.max(1, Math.round(LEN / d));
+    const rs = document.documentElement.style;
+    rs.setProperty('--tkd', fit(40) + 's'); rs.setProperty('--swd', fit(9) + 's'); rs.setProperty('--mtd', fit(20) + 's');
+    if (Q.get('only') === 'menu') document.body.classList.add('only-menu');
+    const fx = document.createElement('div'); fx.className = 'fx';
+    fx.innerHTML = Array.from({ length: 26 }, (_, i) => `<i style="--x:${(i * 37) % 100};--d:${fit([8.6, 10.75, 14.3333, 21.5][i % 4])};--w:${(i * 13) % 10};--s:${0.5 + ((i * 17) % 10) / 10}"></i>`).join('') + '<b class="sw"></b>';
+    document.querySelector('.tv').appendChild(fx);
+  }
   const st = $('#st'), bar = $('#bar i');
   function show() {
     const sc = seq[n % seq.length]; n++;
     const old = st.firstElementChild; if (old) { old.classList.add('out'); setTimeout(() => old.remove(), 700); }
     const el = document.createElement('section'); el.className = `sc ${sc.cls}`; el.innerHTML = sc.html; st.appendChild(el); loadPics(el);
-    bar.style.transition = 'none'; bar.style.width = '0'; void bar.offsetWidth; bar.style.transition = `width ${sc.t}s linear`; bar.style.width = '100%';
+    if (Q.has('video')) { bar.style.animation = 'none'; void bar.offsetWidth; bar.style.animation = `${n % 2 ? 'barp' : 'barq'} ${sc.t}s linear forwards`; }
+    else { bar.style.transition = 'none'; bar.style.width = '0'; void bar.offsetWidth; bar.style.transition = `width ${sc.t}s linear`; bar.style.width = '100%'; }
     if (sc.cls === 'menu') { const rows = [...el.querySelectorAll('.mr')]; let k = 0; el._t = setInterval(() => { rows.forEach((r) => r.classList.remove('hl')); rows[k++ % rows.length].classList.add('hl'); }, 1600); }
     if (old && old._t) clearInterval(old._t);
     if (!Q.has('hold')) setTimeout(show, sc.t * 1000);

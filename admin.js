@@ -1638,9 +1638,10 @@ function secScreens(main) {
   const base = location.origin + '/';
   const KEY = 'so_tvn'; let N = {}; try { N = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (_) {}
   const draw = () => {
-    const mk = n => location.origin + '/menu/manakish.html?s=' + n;
+    const mk = n => location.origin + '/menu/video.html?s=' + n;
+    const tvn = n => n === 1 ? A('المنيو', 'Karte') : A('العروض والصور', 'Spezialitäten & Bilder');
     main.innerHTML = `<div class="card"><b>🥙 ${esc(A('الفرن – مناقيش ومعجنات (شاشات متحركة)', 'Bäckerei – Manakish & Backwaren (animiert)'))}</b>
-      ${[1, 2].map(n => `<div class="row" style="align-items:center;margin-top:8px"><b>${esc(A('شاشة', 'Bildschirm'))} ${n}</b><div class="acts"><a class="btn s" href="${esc(mk(n))}" target="_blank">${esc(A('فتح', 'Öffnen'))}</a><button class="btn s o" data-cp="${esc(mk(n))}">${esc(A('نسخ الرابط', 'Link kopieren'))}</button></div></div><div class="note" dir="ltr" style="font-size:15px">${esc(mk(n).replace(/^https?:\/\//, ''))}</div>`).join('')}</div>
+      ${[1, 2].map(n => `<div class="row" style="align-items:center;margin-top:8px"><b>${esc(A('شاشة', 'Bildschirm'))} ${n} · ${esc(tvn(n))}</b><div class="acts"><a class="btn s" href="${esc(mk(n))}" target="_blank">${esc(A('فتح', 'Öffnen'))}</a><button class="btn s o" data-cp="${esc(mk(n))}">${esc(A('نسخ الرابط', 'Link kopieren'))}</button></div></div><div class="note" dir="ltr" style="font-size:15px">${esc(mk(n).replace(/^https?:\/\//, ''))}</div>`).join('')}</div>
     <p class="note">${esc(A('افتح الرابط على متصفح التلفزيون (Smart TV) واعمل شاشة كاملة. المنيو بيتحدّث لحالو كل دقيقة، والمنتجات الخلصانة بتختفي لحالها. إذا المحل عندو شاشتين، الأقسام بتتقسم عليهن تلقائياً.', 'Link im Browser des Smart-TV öffnen und Vollbild. Das Menü aktualisiert sich jede Minute, ausverkaufte Produkte verschwinden. Bei 2 Bildschirmen werden die Kategorien automatisch aufgeteilt.'))}</p>
     ${myShops().map(sh => { const n = N[sh.id] || 2;
       return `<div class="card"><div class="li" style="align-items:center"><div class="t"><b>${SI(sh.type)} ${esc(L(sh, 'name'))}</b></div>
